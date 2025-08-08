@@ -17,11 +17,14 @@ export interface Booking {
   course: string;
   discipline: string;
   teacher: string;
-  lessonsBooked: number; // 1-8
   lessonsRecorded?: number;
-  tpLinks?: string; // URLs ou observações
+  editorNotes?: string;
   status: EditingStatus;
   editedFiles?: EditedFile[];
+  // Campos a serem movidos para o fluxo de confirmação do professor
+  teacherConfirmation?: "CONFIRMADO" | "NEGADO";
+  teacherNotes?: string; // Observações do professor
+  teacherFiles?: EditedFile[]; // TPs enviados pelo professor
 }
 
 interface BookingsContextValue {
