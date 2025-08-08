@@ -38,6 +38,14 @@ All colors MUST be HSL.
 
     --radius: 0.5rem;
 
+    /* Extended design tokens */
+    --primary-glow: 222.2 47.4% 20%;
+    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-glow)));
+    --gradient-subtle: linear-gradient(180deg, hsl(var(--background)), hsl(var(--muted) / 0.2));
+    --shadow-elegant: 0 12px 30px -12px hsl(var(--primary) / 0.25);
+    --shadow-soft: 0 8px 24px -12px hsl(var(--foreground) / 0.1);
+    --transition-smooth: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+
     --sidebar-background: 0 0% 98%;
 
     --sidebar-foreground: 240 5.3% 26.1%;
@@ -91,6 +99,9 @@ All colors MUST be HSL.
     --sidebar-accent-foreground: 240 4.8% 95.9%;
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* Dark variants */
+    --primary-glow: 210 40% 86%;
   }
 }
 
@@ -101,5 +112,19 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+@layer utilities {
+  .bg-app {
+    background:
+      radial-gradient(1200px 800px at var(--x,50%) var(--y,20%), hsl(var(--accent) / 0.25), transparent 60%),
+      linear-gradient(180deg, hsl(var(--background)), hsl(var(--muted) / 0.15));
+  }
+  .glass {
+    background-color: hsl(var(--card) / 0.65);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid hsl(var(--border));
   }
 }
