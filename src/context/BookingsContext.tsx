@@ -19,6 +19,8 @@ export interface Booking {
   teacher: string;
   lessonsRecorded?: number;
   editorNotes?: string;
+  totalUnits?: number;
+  recordedUnits?: number;
   status: EditingStatus;
   editedFiles?: EditedFile[];
   // Campos a serem movidos para o fluxo de confirmação do professor

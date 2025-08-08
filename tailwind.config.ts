@@ -19,6 +19,9 @@ export default {
 		},
 		extend: {
 			colors: {
+				"brand-blue": "#2b466d",
+        "brand-cyan": "#00adc7",
+        "brand-dark": "#232323",
 				border: 'hsl(var(--border))',
 				input: 'hsl(var(--input))',
 				ring: 'hsl(var(--ring))',
