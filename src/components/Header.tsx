@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { CalendarCheck, Shield, Clapperboard, LogOut } from "lucide-react";
+import { CalendarCheck, ListChecks, Clapperboard, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "./ui/button";
@@ -39,16 +39,16 @@ const Header = () => {
                 <span className="hidden sm:inline">Agendar</span>
               </Link>
               <Link
-                to="/admin"
+                to="/agendados"
                 className={cn(
                   "inline-flex items-center gap-2 px-3 py-2 rounded-md hover:bg-accent/60 transition-colors",
-                  isActive("/admin") && "bg-accent"
+                  isActive("/agendados") && "bg-accent"
                 )}
-                aria-label="Administração"
-                title="Administração"
+                aria-label="Agendados"
+                title="Agendados"
               >
-                <Shield className="h-4 w-4" />
-                <span className="hidden sm:inline">Admin</span>
+                <ListChecks className="h-4 w-4" />
+                <span className="hidden sm:inline">Agendados</span>
               </Link>
             </>
           )}

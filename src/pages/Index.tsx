@@ -56,6 +56,7 @@ function Index() {
     teacher: "",
     course: "",
     discipline: "",
+    totalUnits: 8, // Default value
   });
 
   const openDialog = (
@@ -89,6 +90,8 @@ function Index() {
       discipline: form.discipline,
       teacher: form.teacher,
       status: "pendente",
+      totalUnits: form.totalUnits,
+      recordedUnits: form.totalUnits / 2, // Grava metade das unidades por agendamento
     });
     setOpen(false);
     toast({ title: "Reserva realizada!", description: `Agendado para ${format(new Date(form.dateISO.replace(/-/g, '/')), "dd/MM/yyyy")} no período da ${form.period.toLowerCase()}.` });
@@ -124,14 +127,35 @@ function Index() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div className="md:col-span-2 flex justify-center">
-            <Calendar
-              mode="single"
-              selected={date}
-              onSelect={setDate}
-              className="rounded-md border"
-              locale={ptBR}
+        <div className="bg-card p-6 rounded-lg border">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="flex justify-center">
+              <Calendar
+                mode="single"
+                selected={date}
+                onSelect={setDate}
+                className="w-full"
+                classNames={{
+                  months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
+                  month: "space-y-4 w-full",
+                  caption: "flex justify-center pt-1 relative items-center",
+                  caption_label: "text-xl font-medium",
+                  nav: "space-x-1 flex items-center",
+                  nav_button: "h-10 w-10 bg-transparent p-0 opacity-50 hover:opacity-100",
+                  table: "w-full border-collapse space-y-1",
+                  head_row: "flex justify-around",
+                  head_cell: "text-muted-foreground rounded-md w-12 font-normal text-lg",
+                  row: "flex w-full mt-2 justify-around",
+                  cell: "h-12 w-12 text-center text-lg p-0 relative [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
+                  day: "h-12 w-12 p-0 font-normal aria-selected:opacity-100",
+                  day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
+                  day_today: "bg-accent text-accent-foreground",
+                  day_outside: "text-muted-foreground opacity-50",
+                  day_disabled: "text-muted-foreground opacity-50",
+                  day_range_middle: "aria-selected:bg-accent aria-selected:text-accent-foreground",
+                  day_hidden: "invisible",
+                }}
+                locale={ptBR}
               disabled={[...holidayDates, { before: new Date(new Date().setDate(new Date().getDate() - 1)) }]}
               modifiers={{
                 holiday: holidayDates,
@@ -212,6 +236,10 @@ function Index() {
                                   <Label htmlFor="discipline">Disciplina</Label>
                                   <Input id="discipline" value={form.discipline} onChange={(e) => setForm({ ...form, discipline: e.target.value })} placeholder="Ex: Marketing I" />
                                 </div>
+                              <div className="grid items-center gap-4">
+                                <Label htmlFor="totalUnits">Total de Unidades da Disciplina</Label>
+                                <Input id="totalUnits" type="number" value={form.totalUnits} onChange={(e) => setForm({ ...form, totalUnits: Number(e.target.value) })} placeholder="Ex: 8" />
+                              </div>
                               </div>
                               <div className="flex justify-end gap-2">
                                 <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
@@ -228,8 +256,9 @@ function Index() {
             )}
           </div>
         </div>
-      </section>
-    </main>
+      </div>
+    </section>
+  </main>
   );
 }
 

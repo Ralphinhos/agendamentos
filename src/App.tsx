@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
+import { ThemeProvider } from "next-themes";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Admin from "./pages/Admin";
@@ -20,14 +21,15 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <HelmetProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <AuthProvider>
-            <BookingsProvider>
-              <Header />
-              <Routes>
+      <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <AuthProvider>
+              <BookingsProvider>
+                <Header />
+                <Routes>
                 {/* Public Routes */}
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/confirmacao/:bookingId" element={<Confirmation />} />
@@ -35,7 +37,7 @@ const App = () => (
                 {/* Protected Routes */}
                 <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
                   <Route path="/" element={<Index />} />
-                  <Route path="/admin" element={<Admin />} />
+                  <Route path="/agendados" element={<Admin />} />
                 </Route>
                 <Route element={<ProtectedRoute allowedRoles={['editor']} />}>
                   <Route path="/editor" element={<Editor />} />
@@ -47,7 +49,8 @@ const App = () => (
             </BookingsProvider>
           </AuthProvider>
         </BrowserRouter>
-      </TooltipProvider>
+        </TooltipProvider>
+      </ThemeProvider>
     </HelmetProvider>
   </QueryClientProvider>
 );
