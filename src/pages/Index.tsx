@@ -196,7 +196,7 @@ function Index() {
                             <DialogContent>
                               <DialogHeader>
                                 <DialogTitle>
-                                  Agendar para {format(new Date(form.dateISO.replace(/-/g, '/')), "dd/MM/yyyy")} · {form.period}
+                                  Agendar para {form.dateISO ? format(new Date(form.dateISO.replace(/-/g, '/')), "dd/MM/yyyy") : ""} · {form.period}
                                 </DialogTitle>
                               </DialogHeader>
                               <div className="grid gap-4 py-4">
