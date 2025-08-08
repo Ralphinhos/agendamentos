@@ -54,22 +54,45 @@ const Admin = () => {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-        {Object.entries(disciplineProgress).map(([discipline, progress]) => {
-          const percentage = (progress.recordedUnits / progress.totalUnits) * 100;
-          return (
-            <div key={discipline} className="bg-card p-4 rounded-lg border">
-              <h3 className="font-semibold">{discipline}</h3>
-              <p className="text-sm text-muted-foreground">
-                {progress.recordedUnits} / {progress.totalUnits} unidades gravadas
-              </p>
-              <Progress value={percentage} className="mt-2" />
-              <p className="text-xs text-muted-foreground mt-1 text-right">
-                {percentage === 100 ? "Concluído" : "Em andamento"}
-              </p>
-            </div>
-          );
-        })}
+      <div className="rounded-md border bg-card mb-8">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Disciplina</TableHead>
+              <TableHead className="w-[200px]">Progresso</TableHead>
+              <TableHead className="w-[250px]">Status</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {Object.entries(disciplineProgress).length > 0 ? (
+              Object.entries(disciplineProgress).map(([discipline, progress]) => {
+                const percentage = (progress.recordedUnits / progress.totalUnits) * 100;
+                return (
+                  <TableRow key={discipline}>
+                    <TableCell className="font-medium">{discipline}</TableCell>
+                    <TableCell>
+                      {progress.recordedUnits} / {progress.totalUnits} Un.
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Progress value={percentage} className="w-[60%]" />
+                        <span className="text-xs text-muted-foreground">
+                          {percentage.toFixed(0)}%
+                        </span>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
+            ) : (
+              <TableRow>
+                <TableCell colSpan={3} className="text-center">
+                  Nenhum progresso de disciplina para mostrar.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
       </div>
 
       <div className="mb-8">
