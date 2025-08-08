@@ -97,7 +97,7 @@ const Editor = () => {
           <TableBody>
             {bookings.length > 0 ? (
               bookings.map((b) => (
-                <TableRow key={b.id}>
+                <TableRow key={b.id} className="hover:bg-muted/50 transition-colors">
                   <TableCell>
                     {format(new Date(b.date.replace(/-/g, '/')), "dd/MM/yyyy")}
                   </TableCell>
