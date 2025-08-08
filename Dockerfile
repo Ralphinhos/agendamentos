@@ -1,15 +1,20 @@
-# Simple development Dockerfile for Vite + React + Tailwind
-FROM node:20-alpine
+# Development Dockerfile for Vite + React + Tailwind using Bun
+FROM oven/bun:1
+
 WORKDIR /app
 
-# Install deps
-COPY package*.json ./
-RUN npm ci
+# Install dependencies
+# Copy both package.json and bun.lockb
+COPY package.json bun.lockb ./
+# Use --frozen-lockfile to ensure we use the exact versions from the lockfile
+RUN bun install --frozen-lockfile
 
-# Copy sources
+# Copy the rest of the application files
 COPY . .
 
+# Expose the port Vite runs on
 EXPOSE 8080
 
-# Run dev server (HMR enabled)
-CMD ["npm","run","dev","--","--host","0.0.0.0","--port","8080"]
+# Run the development server
+# The --host flag is required to expose the server to the host machine
+CMD ["bun", "run", "dev", "--host", "0.0.0.0", "--port", "8080"]
