@@ -49,35 +49,82 @@ const nextStatus: Record<EditingStatus, EditingStatus> = {
   concluída: "pendente",
 };
 
+// Componente do Dialog para evitar re-render da tabela principal
+const EditDetailsDialog = ({ booking, onSave }: { booking: Booking, onSave: (data: Partial<Booking>) => void }) => {
+  const [formData, setFormData] = useState({
+    lessonsRecorded: booking.lessonsRecorded ?? 0,
+    editorNotes: booking.editorNotes ?? "",
+  });
+  const [fileToUpload, setFileToUpload] = useState<File | null>(null);
+
+  const handleDriveUpload = () => {
+    if (!fileToUpload) return;
+    console.log("--- SIMULAÇÃO DE UPLOAD GOOGLE DRIVE ---");
+    console.log(`Arquivo: ${fileToUpload.name}`);
+    console.log(`Pasta de destino: 2025.2/${booking.discipline}`);
+    console.log("-----------------------------------------");
+    toast({ title: "Simulação de Upload", description: `Arquivo ${fileToUpload.name} enviado para a pasta ${booking.discipline} no Drive.` });
+    setFileToUpload(null);
+  };
+
+  const handleSave = () => {
+    onSave(formData);
+  }
+
+  return (
+    <DialogContent>
+      <DialogHeader>
+        <DialogTitle>Detalhes da Gravação</DialogTitle>
+      </DialogHeader>
+      <div className="space-y-4 py-4">
+        <div>
+          <Label>Aulas Gravadas</Label>
+          <Input
+            type="number"
+            placeholder="Nº de aulas"
+            value={formData.lessonsRecorded}
+            onChange={(e) => setFormData(prev => ({ ...prev, lessonsRecorded: Number(e.target.value) }))}
+          />
+        </div>
+        <div>
+          <Label>Observações do Editor</Label>
+          <Textarea
+            placeholder="Algum problema na gravação? Áudio, vídeo, etc."
+            value={formData.editorNotes}
+            onChange={(e) => setFormData(prev => ({ ...prev, editorNotes: e.target.value }))}
+          />
+        </div>
+        <div>
+          <Label>Enviar para o Drive</Label>
+          <div className="p-4 space-y-3 border-2 border-dashed rounded-md">
+            <Input type="file" onChange={(e) => setFileToUpload(e.target.files ? e.target.files[0] : null)} />
+            <Button className="w-full" disabled={!fileToUpload} onClick={handleDriveUpload}>Subir para o Drive (Sim)</Button>
+          </div>
+        </div>
+      </div>
+      <DialogFooter>
+        <DialogClose asChild><Button variant="outline">Cancelar</Button></DialogClose>
+        <Button onClick={handleSave}>Salvar Alterações</Button>
+      </DialogFooter>
+    </DialogContent>
+  )
+}
+
+
 const Editor = () => {
   const { bookings, updateBooking } = useBookings();
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
-  const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
-  const [fileToUpload, setFileToUpload] = useState<File | null>(null);
-
-  const handleDriveUpload = () => {
-    if (!fileToUpload || !editingBooking) return;
-    const { discipline } = editingBooking;
-    console.log("--- SIMULAÇÃO DE UPLOAD GOOGLE DRIVE ---");
-    console.log(`Arquivo: ${fileToUpload.name}`);
-    console.log(`Pasta de destino: 2025.2/${discipline}`);
-    console.log("-----------------------------------------");
-    toast({ title: "Simulação de Upload", description: `Arquivo ${fileToUpload.name} enviado para a pasta ${discipline} no Drive.` });
-    setFileToUpload(null);
-  };
+  const [editingBookingId, setEditingBookingId] = useState<string | null>(null);
 
   const handleStatusChange = (id: string, currentStatus: EditingStatus) => {
     updateBooking(id, { status: nextStatus[currentStatus] });
   };
 
-  const handleSaveDetails = () => {
-    if (!editingBooking) return;
-    updateBooking(editingBooking.id, {
-      lessonsRecorded: editingBooking.lessonsRecorded,
-      editorNotes: editingBooking.editorNotes,
-    });
-    setEditingBooking(null); // Fecha o dialog
+  const handleSaveDetails = (data: Partial<Booking>) => {
+    if (!editingBookingId) return;
+    updateBooking(editingBookingId, data);
+    setEditingBookingId(null); // Fecha o dialog
   };
 
   const columns: ColumnDef<Booking>[] = [
@@ -101,49 +148,15 @@ const Editor = () => {
       id: "actions",
       cell: ({ row }) => (
         <Dialog
-          open={editingBooking?.id === row.original.id}
-          onOpenChange={(isOpen) => !isOpen && setEditingBooking(null)}
+          open={editingBookingId === row.original.id}
+          onOpenChange={(isOpen) => !isOpen && setEditingBookingId(null)}
         >
           <DialogTrigger asChild>
-            <Button variant="outline" size="sm" onClick={() => setEditingBooking(row.original)}>
+            <Button variant="outline" size="sm" onClick={() => setEditingBookingId(row.original.id)}>
               Ver Detalhes
             </Button>
           </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Detalhes da Gravação</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div>
-                <Label>Aulas Gravadas</Label>
-                <Input
-                  type="number"
-                  placeholder="Nº de aulas"
-                  value={editingBooking?.lessonsRecorded ?? ""}
-                  onChange={(e) => setEditingBooking(prev => prev && { ...prev, lessonsRecorded: Number(e.target.value) })}
-                />
-              </div>
-              <div>
-                <Label>Observações do Editor</Label>
-                <Textarea
-                  placeholder="Algum problema na gravação? Áudio, vídeo, etc."
-                  value={editingBooking?.editorNotes ?? ""}
-                  onChange={(e) => setEditingBooking(prev => prev && { ...prev, editorNotes: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label>Enviar para o Drive</Label>
-                <div className="p-4 space-y-3 border-2 border-dashed rounded-md">
-                  <Input type="file" onChange={(e) => setFileToUpload(e.target.files ? e.target.files[0] : null)} />
-                  <Button className="w-full" disabled={!fileToUpload} onClick={handleDriveUpload}>Subir para o Drive (Sim)</Button>
-                </div>
-              </div>
-            </div>
-            <DialogFooter>
-              <DialogClose asChild><Button variant="outline">Cancelar</Button></DialogClose>
-              <Button onClick={handleSaveDetails}>Salvar Alterações</Button>
-            </DialogFooter>
-          </DialogContent>
+          <EditDetailsDialog booking={row.original} onSave={handleSaveDetails} />
         </Dialog>
       )
     }
