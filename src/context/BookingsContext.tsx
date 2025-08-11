@@ -37,6 +37,7 @@ interface BookingsContextValue {
   updateBooking: (id: string, patch: Partial<Booking>) => void;
   removeBooking: (id: string) => void;
   getBySlot: (date: string, period: Booking["period"]) => Booking | undefined;
+  getDisciplineProgress: (disciplineName: string) => { totalUnits: number; actualRecorded: number } | null;
 }
 
 const BookingsContext = createContext<BookingsContextValue | undefined>(undefined);
@@ -65,8 +66,20 @@ export const BookingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const getBySlot = (date: string, period: Booking["period"]) =>
     bookings.find((b) => b.date === date && b.period === period && b.teacherConfirmation !== 'NEGADO');
 
+  const getDisciplineProgress = (disciplineName: string) => {
+    const disciplineBookings = bookings.filter(b => b.discipline === disciplineName);
+    if (disciplineBookings.length === 0) return null;
+
+    const totalUnits = disciplineBookings[0].totalUnits || 0;
+    const actualRecorded = disciplineBookings.reduce((acc, b) => {
+      return acc + (b.lessonsRecorded ?? b.recordedUnits ?? 0);
+    }, 0);
+
+    return { totalUnits, actualRecorded };
+  };
+
   const value = useMemo(
-    () => ({ bookings, addBooking, updateBooking, removeBooking, getBySlot }),
+    () => ({ bookings, addBooking, updateBooking, removeBooking, getBySlot, getDisciplineProgress }),
     [bookings]
   );
 

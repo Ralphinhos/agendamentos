@@ -56,8 +56,8 @@ const Admin = () => {
 
     return bookings.map(b => {
       const progress = progressMap[b.discipline];
-      const disciplineProgress = progress ? (progress.actualRecorded / progress.totalUnits) * 100 : 0;
-      return { ...b, disciplineProgress };
+      const percentage = progress ? (progress.actualRecorded / progress.totalUnits) * 100 : 0;
+      return { ...b, disciplineProgress: Math.min(percentage, 100) };
     });
   }, [bookings]);
 

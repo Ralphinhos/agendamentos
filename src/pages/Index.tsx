@@ -27,9 +27,10 @@ function formatDateISO(d: Date) {
 }
 
 function Index() {
-  const { addBooking, getBySlot, bookings } = useBookings();
+  const { addBooking, getBySlot, bookings, getDisciplineProgress } = useBookings();
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [holidays, setHolidays] = useState<Holiday[]>([]);
+  const [disciplineInfo, setDisciplineInfo] = useState<{ remaining: number, total: number } | null>(null);
 
   const bookedDays = useMemo(() => {
     const dates = bookings
@@ -75,8 +76,28 @@ function Index() {
     start: string,
     end: string
   ) => {
-    setForm((f) => ({ ...f, dateISO, period, start, end, teacher: '', course: '', discipline: '' }));
+    setForm((f) => ({ ...f, dateISO, period, start, end, teacher: '', course: '', discipline: '', totalUnits: 8 }));
+    setDisciplineInfo(null);
     setOpen(true);
+  };
+
+  const handleDisciplineChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const disciplineName = e.target.value;
+    setForm(f => ({ ...f, discipline: disciplineName }));
+
+    if (disciplineName.trim()) {
+      const progress = getDisciplineProgress(disciplineName.trim());
+      if (progress) {
+        setDisciplineInfo({
+          total: progress.totalUnits,
+          remaining: progress.totalUnits - progress.actualRecorded,
+        });
+      } else {
+        setDisciplineInfo(null);
+      }
+    } else {
+      setDisciplineInfo(null);
+    }
   };
 
   const submit = () => {
@@ -84,6 +105,12 @@ function Index() {
       toast({ title: "Preencha os campos obrigatórios.", description: "Docente, Curso e Disciplina." });
       return;
     }
+
+    if (disciplineInfo && disciplineInfo.remaining <= 0) {
+      toast({ variant: "destructive", title: "Disciplina Concluída", description: "Todas as unidades desta disciplina já foram gravadas." });
+      return;
+    }
+
     const existing = getBySlot(form.dateISO, form.period);
     if (existing) {
       toast({ title: "Horário já reservado", description: "Escolha outro horário disponível." });
@@ -246,11 +273,17 @@ function Index() {
                                 </div>
                                 <div className="grid items-center gap-4">
                                   <Label htmlFor="discipline">Disciplina</Label>
-                                  <Input id="discipline" value={form.discipline} onChange={(e) => setForm({ ...form, discipline: e.target.value })} placeholder="Ex: Marketing I" />
+                                  <Input id="discipline" value={form.discipline} onChange={handleDisciplineChange} placeholder="Ex: Marketing I" />
                                 </div>
                               <div className="grid items-center gap-4">
                                 <Label htmlFor="totalUnits">Total de Unidades da Disciplina</Label>
-                                <Input id="totalUnits" type="number" value={form.totalUnits} onChange={(e) => setForm({ ...form, totalUnits: Number(e.target.value) })} placeholder="Ex: 8" />
+                                <Input id="totalUnits" type="number" value={form.totalUnits} onChange={(e) => setForm({ ...form, totalUnits: Number(e.target.value) })} placeholder="Ex: 8" disabled={!!disciplineInfo} />
+                                {disciplineInfo && (
+                                  <p className="text-sm text-muted-foreground">
+                                    Unidades restantes para gravar: {disciplineInfo.remaining} de {disciplineInfo.total}.
+                                    Este agendamento irá registrar {form.totalUnits / 2} unidades.
+                                  </p>
+                                )}
                               </div>
                               </div>
                               <div className="flex justify-end gap-2">
