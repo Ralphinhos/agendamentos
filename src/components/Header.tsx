@@ -20,12 +20,8 @@ const Header = () => {
   const { bookings, updateBooking } = useBookings();
   const isActive = (path: string) => location.pathname === path;
 
-  const { unreadCancellations, readCancellations } = useMemo(() => {
-    const cancellations = bookings.filter(b => b.teacherConfirmation === "NEGADO");
-    return {
-      unreadCancellations: cancellations.filter(c => !c.cancellationRead),
-      readCancellations: cancellations.filter(c => c.cancellationRead),
-    }
+  const unreadCancellations = useMemo(() => {
+    return bookings.filter(b => b.teacherConfirmation === "NEGADO" && !b.cancellationRead);
   }, [bookings]);
 
   // Don't render header on login or confirmation pages
@@ -98,16 +94,6 @@ const Header = () => {
                     <DropdownMenuItem disabled>Nenhuma notificação nova</DropdownMenuItem>
                   )}
 
-                  {readCancellations.length > 0 && <DropdownMenuSeparator />}
-
-                  {readCancellations.map(b => (
-                    <DropdownMenuItem key={b.id} disabled>
-                      <div className="flex flex-col opacity-60">
-                        <span className="font-semibold">{b.teacher} cancelou</span>
-                        <span className="text-xs text-muted-foreground">{b.discipline}</span>
-                      </div>
-                    </DropdownMenuItem>
-                  ))}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
                     <Link to="/notificacoes" className="w-full justify-center">

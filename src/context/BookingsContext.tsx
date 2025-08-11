@@ -63,7 +63,7 @@ export const BookingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const removeBooking = (id: string) => setBookings((prev) => prev.filter((b) => b.id !== id));
 
   const getBySlot = (date: string, period: Booking["period"]) =>
-    bookings.find((b) => b.date === date && b.period === period);
+    bookings.find((b) => b.date === date && b.period === period && b.teacherConfirmation !== 'NEGADO');
 
   const value = useMemo(
     () => ({ bookings, addBooking, updateBooking, removeBooking, getBySlot }),

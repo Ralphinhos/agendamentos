@@ -27,11 +27,11 @@ function formatDateISO(d: Date) {
 }
 
 function Index() {
-  const { addBooking, getBySlot } = useBookings();
+  const { addBooking, getBySlot, bookings } = useBookings();
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [holidays, setHolidays] = useState<Holiday[]>([]);
 
-  const holidayDates = useMemo(() => {
+  const bookedDays = useMemo(() => {
     return holidays.map(h => {
       const [year, month, day] = h.date.split('-').map(Number);
       return new Date(year, month - 1, day);
@@ -159,9 +159,11 @@ function Index() {
               disabled={[...holidayDates, { before: new Date(new Date().setDate(new Date().getDate() - 1)) }]}
               modifiers={{
                 holiday: holidayDates,
+                booked: bookedDays,
               }}
               modifiersClassNames={{
                 holiday: "text-red-500",
+                booked: "font-bold text-primary",
               }}
             />
           </div>

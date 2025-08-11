@@ -24,9 +24,18 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Booking } from "@/context/BookingsContext";
 import { toast } from "@/hooks/use-toast";
+import {
+  ColumnDef,
+  flexRender,
+  getCoreRowModel,
+  useReactTable,
+  SortingState,
+  getSortedRowModel,
+  getFilteredRowModel,
+} from "@tanstack/react-table"
 
 const statusColors: Record<EditingStatus, string> = {
   pendente: "bg-red-500",
@@ -42,6 +51,8 @@ const nextStatus: Record<EditingStatus, EditingStatus> = {
 
 const Editor = () => {
   const { bookings, updateBooking } = useBookings();
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [globalFilter, setGlobalFilter] = useState("");
   const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
   const [fileToUpload, setFileToUpload] = useState<File | null>(null);
 
@@ -69,6 +80,89 @@ const Editor = () => {
     setEditingBooking(null); // Fecha o dialog
   };
 
+  const columns: ColumnDef<Booking>[] = [
+    { accessorKey: "date", header: "Data", cell: ({ row }) => format(new Date(row.original.date.replace(/-/g, '/')), "dd/MM/yyyy") },
+    { accessorKey: "teacher", header: "Docente" },
+    { accessorKey: "discipline", header: "Disciplina" },
+    { accessorKey: "recordedUnits", header: "Aulas Agendadas" },
+    {
+      accessorKey: "status",
+      header: "Status",
+      cell: ({ row }) => (
+        <Badge
+          className={cn("cursor-pointer text-white hover:brightness-125 transition-all", statusColors[row.original.status])}
+          onClick={() => handleStatusChange(row.original.id, row.original.status)}
+        >
+          {row.original.status}
+        </Badge>
+      )
+    },
+    {
+      id: "actions",
+      cell: ({ row }) => (
+        <Dialog
+          open={editingBooking?.id === row.original.id}
+          onOpenChange={(isOpen) => !isOpen && setEditingBooking(null)}
+        >
+          <DialogTrigger asChild>
+            <Button variant="outline" size="sm" onClick={() => setEditingBooking(row.original)}>
+              Ver Detalhes
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Detalhes da Gravação</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div>
+                <Label>Aulas Gravadas</Label>
+                <Input
+                  type="number"
+                  placeholder="Nº de aulas"
+                  value={editingBooking?.lessonsRecorded ?? ""}
+                  onChange={(e) => setEditingBooking(prev => prev && { ...prev, lessonsRecorded: Number(e.target.value) })}
+                />
+              </div>
+              <div>
+                <Label>Observações do Editor</Label>
+                <Textarea
+                  placeholder="Algum problema na gravação? Áudio, vídeo, etc."
+                  value={editingBooking?.editorNotes ?? ""}
+                  onChange={(e) => setEditingBooking(prev => prev && { ...prev, editorNotes: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label>Enviar para o Drive</Label>
+                <div className="p-4 space-y-3 border-2 border-dashed rounded-md">
+                  <Input type="file" onChange={(e) => setFileToUpload(e.target.files ? e.target.files[0] : null)} />
+                  <Button className="w-full" disabled={!fileToUpload} onClick={handleDriveUpload}>Subir para o Drive (Sim)</Button>
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <DialogClose asChild><Button variant="outline">Cancelar</Button></DialogClose>
+              <Button onClick={handleSaveDetails}>Salvar Alterações</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )
+    }
+  ];
+
+  const table = useReactTable({
+    data: bookings,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+    onSortingChange: setSorting,
+    getSortedRowModel: getSortedRowModel(),
+    onGlobalFilterChange: setGlobalFilter,
+    getFilteredRowModel: getFilteredRowModel(),
+    state: {
+      sorting,
+      globalFilter,
+    },
+  });
+
   return (
     <main className="max-w-7xl mx-auto px-4 py-8">
       <Helmet>
@@ -76,116 +170,45 @@ const Editor = () => {
         <meta name="description" content="Acompanhe o status de edição das gravações." />
       </Helmet>
 
-      <div className="mb-8">
+      <div className="flex justify-between items-center mb-4">
         <h1 className="text-3xl font-bold">Painel de Edição</h1>
-        <p className="text-muted-foreground mt-2">
-          Visualize os agendamentos, atualize o status e adicione observações.
-        </p>
+        <Input
+          placeholder="Filtrar por qualquer campo..."
+          value={globalFilter ?? ''}
+          onChange={e => setGlobalFilter(e.target.value)}
+          className="max-w-sm"
+        />
       </div>
 
-      <div className="rounded-md border">
+      <div className="rounded-lg border bg-card">
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead>Data</TableHead>
-              <TableHead>Docente</TableHead>
-              <TableHead>Disciplina</TableHead>
-              <TableHead>Aulas Agendadas</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Ações</TableHead>
-            </TableRow>
+            {table.getHeaderGroups().map(headerGroup => (
+              <TableRow key={headerGroup.id}>
+                {headerGroup.headers.map(header => (
+                  <TableHead key={header.id} onClick={header.column.getToggleSortingHandler()}>
+                    {flexRender(header.column.columnDef.header, header.getContext())}
+                    {{ asc: ' ▲', desc: ' ▼' }[header.column.getIsSorted() as string] ?? null}
+                  </TableHead>
+                ))}
+              </TableRow>
+            ))}
           </TableHeader>
           <TableBody>
-            {bookings.length > 0 ? (
-              bookings.map((b) => (
-                <TableRow key={b.id} className="hover:bg-muted/50 transition-colors">
-                  <TableCell>
-                    {format(new Date(b.date.replace(/-/g, '/')), "dd/MM/yyyy")}
-                  </TableCell>
-                  <TableCell>{b.teacher}</TableCell>
-                  <TableCell>{b.discipline}</TableCell>
-                  <TableCell>{b.recordedUnits}</TableCell>
-                  <TableCell>
-                    <Badge
-                      className={cn("cursor-pointer text-white hover:brightness-125 transition-all", statusColors[b.status])}
-                      onClick={() => handleStatusChange(b.id, b.status)}
-                    >
-                      {b.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Dialog
-                      open={editingBooking?.id === b.id}
-                      onOpenChange={(isOpen) => !isOpen && setEditingBooking(null)}
-                    >
-                      <DialogTrigger asChild>
-                        <Button variant="outline" size="sm" onClick={() => setEditingBooking(b)}>
-                          Ver Detalhes
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>Detalhes da Gravação</DialogTitle>
-                        </DialogHeader>
-                        <div className="space-y-4 py-4">
-                          <div>
-                            <Label>Aulas Gravadas</Label>
-                            <Input
-                              type="number"
-                              placeholder="Nº de aulas"
-                              value={editingBooking?.lessonsRecorded ?? ""}
-                              onChange={(e) =>
-                                setEditingBooking(
-                                  (prev) =>
-                                    prev && { ...prev, lessonsRecorded: Number(e.target.value) }
-                                )
-                              }
-                            />
-                          </div>
-                          <div>
-                            <Label>Observações do Editor</Label>
-                            <Textarea
-                              placeholder="Algum problema na gravação? Áudio, vídeo, etc."
-                              value={editingBooking?.editorNotes ?? ""}
-                              onChange={(e) =>
-                                setEditingBooking(
-                                  (prev) => prev && { ...prev, editorNotes: e.target.value }
-                                )
-                              }
-                            />
-                          </div>
-                          <div>
-                            <Label>Enviar para o Drive</Label>
-                            <div className="p-4 space-y-3 border-2 border-dashed rounded-md">
-                              <Input
-                                type="file"
-                                onChange={(e) => setFileToUpload(e.target.files ? e.target.files[0] : null)}
-                              />
-                              <Button
-                                className="w-full"
-                                disabled={!fileToUpload}
-                                onClick={handleDriveUpload}
-                              >
-                                Subir para o Drive (Sim)
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                        <DialogFooter>
-                          <DialogClose asChild>
-                            <Button variant="outline">Cancelar</Button>
-                          </DialogClose>
-                          <Button onClick={handleSaveDetails}>Salvar Alterações</Button>
-                        </DialogFooter>
-                      </DialogContent>
-                    </Dialog>
-                  </TableCell>
+            {table.getRowModel().rows.length > 0 ? (
+              table.getRowModel().rows.map(row => (
+                <TableRow key={row.id}>
+                  {row.getVisibleCells().map(cell => (
+                    <TableCell key={cell.id}>
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </TableCell>
+                  ))}
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={5} className="text-center">
-                  Nenhum agendamento encontrado.
+                <TableCell colSpan={columns.length} className="h-24 text-center">
+                  Nenhum resultado encontrado.
                 </TableCell>
               </TableRow>
             )}
