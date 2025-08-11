@@ -13,10 +13,57 @@ import Confirmation from "./pages/Confirmation";
 import LoginPage from "./pages/Login";
 import Header from "./components/Header";
 import { BookingsProvider } from "./context/BookingsContext";
-import { AuthProvider } from "./context/AuthContext";
+import { AuthProvider, useAuth } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
+import { useIdleTimer } from "./hooks/use-idle-timer";
+import { SessionTimeoutDialog } from "./components/SessionTimeoutDialog";
 
 const queryClient = new QueryClient();
+
+const AppContent = () => {
+  const { logout, role } = useAuth();
+
+  const { isWarning, reset: resetIdleTimer } = useIdleTimer({
+    onIdle: logout,
+    warningTimeout: 1000 * 60 * 9, // 9 minutos
+    idleTimeout: 1000 * 60 * 10, // 10 minutos
+  });
+
+  // Only run the timer if a user is logged in
+  if (!role) {
+    return (
+      <>
+        <Header />
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/confirmacao/:bookingId" element={<Confirmation />} />
+          <Route path="*" element={<LoginPage />} />
+        </Routes>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <SessionTimeoutDialog
+        isOpen={isWarning}
+        onContinue={resetIdleTimer}
+        onLogout={logout}
+      />
+      <Header />
+      <Routes>
+        <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
+          <Route path="/" element={<Index />} />
+          <Route path="/agendamentos" element={<Admin />} />
+        </Route>
+        <Route element={<ProtectedRoute allowedRoles={['editor']} />}>
+          <Route path="/editor" element={<Editor />} />
+        </Route>
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </>
+  );
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -28,24 +75,7 @@ const App = () => (
           <BrowserRouter>
             <AuthProvider>
               <BookingsProvider>
-                <Header />
-                <Routes>
-                {/* Public Routes */}
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/confirmacao/:bookingId" element={<Confirmation />} />
-
-                {/* Protected Routes */}
-                <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
-                  <Route path="/" element={<Index />} />
-                  <Route path="/agendados" element={<Admin />} />
-                </Route>
-                <Route element={<ProtectedRoute allowedRoles={['editor']} />}>
-                  <Route path="/editor" element={<Editor />} />
-                </Route>
-
-                {/* Catch-all */}
-                <Route path="*" element={<NotFound />} />
-              </Routes>
+                <AppContent />
             </BookingsProvider>
           </AuthProvider>
         </BrowserRouter>
