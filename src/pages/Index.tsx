@@ -32,6 +32,16 @@ function Index() {
   const [holidays, setHolidays] = useState<Holiday[]>([]);
 
   const bookedDays = useMemo(() => {
+    const dates = bookings
+      .filter(b => b.teacherConfirmation !== 'NEGADO')
+      .map(b => {
+        const [year, month, day] = b.date.split('-').map(Number);
+        return new Date(year, month - 1, day);
+      });
+    return dates;
+  }, [bookings]);
+
+  const holidayDates = useMemo(() => {
     return holidays.map(h => {
       const [year, month, day] = h.date.split('-').map(Number);
       return new Date(year, month - 1, day);
