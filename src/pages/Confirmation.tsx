@@ -13,7 +13,6 @@ const Confirmation = () => {
   const { bookingId } = useParams<{ bookingId: string }>();
   const { bookings, updateBooking } = useBookings();
   const [isConfirmed, setIsConfirmed] = useState(false);
-  const [isDenied, setIsDenied] = useState(false);
   const [isDenying, setIsDenying] = useState(false);
   const [cancellationReason, setCancellationReason] = useState("");
 
@@ -33,7 +32,6 @@ const Confirmation = () => {
       cancellationRead: false,
       status: "pendente", // Mantém o status para não desaparecer do histórico imediatamente
     });
-    setIsDenied(true);
     // Simulação de e-mail
     console.log(`--- SIMULAÇÃO DE E-MAIL PARA GERENTE ---`);
     console.log(`Assunto: Agendamento Cancelado pelo Docente`);
@@ -44,26 +42,26 @@ const Confirmation = () => {
     console.log(`--------------------------------------`);
   };
 
-  if (isDenied) {
+  if (!booking) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <Card className="w-full max-w-lg text-center p-8">
+        <Card className="w-full max-w-md text-center p-8">
           <CardHeader>
-            <CardTitle>Agendamento Recusado</CardTitle>
-            <CardDescription>Sua recusa foi registrada e o administrador foi notificado. Obrigado pelo aviso.</CardDescription>
+            <CardTitle>Agendamento não encontrado</CardTitle>
+            <CardDescription>O link pode estar quebrado ou o agendamento foi cancelado.</CardDescription>
           </CardHeader>
         </Card>
       </div>
     );
   }
 
-  if (!booking) {
+  if (booking.teacherConfirmation === "CONFIRMADO" || booking.teacherConfirmation === "NEGADO") {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Card className="w-full max-w-md text-center">
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <Card className="w-full max-w-md text-center p-8">
           <CardHeader>
-            <CardTitle>Agendamento não encontrado</CardTitle>
-            <CardDescription>O link pode estar quebrado ou o agendamento foi cancelado.</CardDescription>
+            <CardTitle>Link Expirado</CardTitle>
+            <CardDescription>Este agendamento já foi respondido. Obrigado!</CardDescription>
           </CardHeader>
         </Card>
       </div>

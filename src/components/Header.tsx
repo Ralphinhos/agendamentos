@@ -20,7 +20,13 @@ const Header = () => {
   const { bookings, updateBooking } = useBookings();
   const isActive = (path: string) => location.pathname === path;
 
-  const unreadCancellations = useMemo(() => bookings.filter(b => b.teacherConfirmation === "NEGADO" && !b.cancellationRead), [bookings]);
+  const { unreadCancellations, readCancellations } = useMemo(() => {
+    const cancellations = bookings.filter(b => b.teacherConfirmation === "NEGADO");
+    return {
+      unreadCancellations: cancellations.filter(c => !c.cancellationRead),
+      readCancellations: cancellations.filter(c => c.cancellationRead),
+    }
+  }, [bookings]);
 
   // Don't render header on login or confirmation pages
   if (!role) {
@@ -75,7 +81,7 @@ const Header = () => {
                     )}
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
+                <DropdownMenuContent align="end" className="w-64">
                   <DropdownMenuLabel>Notificações</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   {unreadCancellations.length > 0 ? (
@@ -84,13 +90,24 @@ const Header = () => {
                         <div className="flex flex-col">
                           <span className="font-semibold">{b.teacher} cancelou</span>
                           <span className="text-xs text-muted-foreground">{b.discipline}</span>
-                          <span className="text-xs text-muted-foreground italic">"{b.cancellationReason || 'Nenhum motivo informado.'}"</span>
+                          {b.cancellationReason && <span className="text-xs text-muted-foreground italic">"{b.cancellationReason}"</span>}
                         </div>
                       </DropdownMenuItem>
                     ))
                   ) : (
                     <DropdownMenuItem disabled>Nenhuma notificação nova</DropdownMenuItem>
                   )}
+
+                  {readCancellations.length > 0 && <DropdownMenuSeparator />}
+
+                  {readCancellations.map(b => (
+                    <DropdownMenuItem key={b.id} disabled>
+                      <div className="flex flex-col opacity-60">
+                        <span className="font-semibold">{b.teacher} cancelou</span>
+                        <span className="text-xs text-muted-foreground">{b.discipline}</span>
+                      </div>
+                    </DropdownMenuItem>
+                  ))}
                 </DropdownMenuContent>
               </DropdownMenu>
             </>
