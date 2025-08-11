@@ -27,6 +27,8 @@ export interface Booking {
   teacherConfirmation?: "CONFIRMADO" | "NEGADO";
   teacherNotes?: string; // Observações do professor
   teacherFiles?: EditedFile[]; // TPs enviados pelo professor
+  cancellationReason?: string;
+  cancellationRead?: boolean;
 }
 
 interface BookingsContextValue {

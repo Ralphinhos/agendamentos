@@ -11,9 +11,11 @@ import { Label } from "@/components/ui/label";
 
 const Confirmation = () => {
   const { bookingId } = useParams<{ bookingId: string }>();
-  const { bookings, updateBooking, removeBooking } = useBookings();
+  const { bookings, updateBooking } = useBookings();
   const [isConfirmed, setIsConfirmed] = useState(false);
   const [isDenied, setIsDenied] = useState(false);
+  const [isDenying, setIsDenying] = useState(false);
+  const [cancellationReason, setCancellationReason] = useState("");
 
   const booking = bookings.find((b) => b.id === bookingId);
 
@@ -25,19 +27,30 @@ const Confirmation = () => {
 
   const handleDeny = () => {
     if (!booking) return;
-    // Para simplificar, vamos remover a reserva.
-    // Uma implementação mais robusta poderia apenas marcar como "NEGADO".
-    removeBooking(booking.id);
+    updateBooking(booking.id, {
+      teacherConfirmation: "NEGADO",
+      cancellationReason,
+      cancellationRead: false,
+      status: "pendente", // Mantém o status para não desaparecer do histórico imediatamente
+    });
     setIsDenied(true);
+    // Simulação de e-mail
+    console.log(`--- SIMULAÇÃO DE E-MAIL PARA GERENTE ---`);
+    console.log(`Assunto: Agendamento Cancelado pelo Docente`);
+    console.log(`Docente: ${booking.teacher}`);
+    console.log(`Disciplina: ${booking.discipline}`);
+    console.log(`Data: ${booking.date}`);
+    console.log(`Motivo: ${cancellationReason}`);
+    console.log(`--------------------------------------`);
   };
 
   if (isDenied) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Card className="w-full max-w-lg text-center">
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <Card className="w-full max-w-lg text-center p-8">
           <CardHeader>
             <CardTitle>Agendamento Recusado</CardTitle>
-            <CardDescription>O horário foi liberado. Obrigado por avisar!</CardDescription>
+            <CardDescription>Sua recusa foi registrada e o administrador foi notificado. Obrigado pelo aviso.</CardDescription>
           </CardHeader>
         </Card>
       </div>
@@ -90,9 +103,23 @@ const Confirmation = () => {
               </div>
                <Button>Enviar Arquivos (demo)</Button>
             </div>
+          ) : isDenying ? (
+            <div className="space-y-4">
+              <Label htmlFor="cancellationReason">Motivo da recusa (opcional)</Label>
+              <Textarea
+                id="cancellationReason"
+                placeholder="Ex: Tive um imprevisto e não poderei comparecer."
+                value={cancellationReason}
+                onChange={(e) => setCancellationReason(e.target.value)}
+              />
+              <div className="flex justify-end gap-2">
+                <Button variant="ghost" onClick={() => setIsDenying(false)}>Voltar</Button>
+                <Button variant="destructive" onClick={handleDeny}>Confirmar Recusa</Button>
+              </div>
+            </div>
           ) : (
             <div className="flex justify-around gap-4">
-              <Button variant="destructive" size="lg" onClick={handleDeny}>
+              <Button variant="destructive" size="lg" onClick={() => setIsDenying(true)}>
                 Recusar Agendamento
               </Button>
               <Button variant="default" size="lg" onClick={handleConfirm}>
