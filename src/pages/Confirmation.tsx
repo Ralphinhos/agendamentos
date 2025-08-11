@@ -12,7 +12,9 @@ import { Label } from "@/components/ui/label";
 const Confirmation = () => {
   const { bookingId } = useParams<{ bookingId: string }>();
   const { bookings, updateBooking } = useBookings();
-  const [isConfirmed, setIsConfirmed] = useState(false);
+
+  // Local state to manage the immediate UI response after an action
+  const [actionTaken, setActionTaken] = useState<"CONFIRMADO" | "NEGADO" | null>(null);
   const [isDenying, setIsDenying] = useState(false);
   const [cancellationReason, setCancellationReason] = useState("");
 
@@ -21,7 +23,7 @@ const Confirmation = () => {
   const handleConfirm = () => {
     if (!booking) return;
     updateBooking(booking.id, { teacherConfirmation: "CONFIRMADO" });
-    setIsConfirmed(true);
+    setActionTaken("CONFIRMADO");
   };
 
   const handleDeny = () => {
@@ -30,8 +32,8 @@ const Confirmation = () => {
       teacherConfirmation: "NEGADO",
       cancellationReason,
       cancellationRead: false,
-      status: "pendente", // Mantém o status para não desaparecer do histórico imediatamente
     });
+    setActionTaken("NEGADO");
     // Simulação de e-mail
     console.log(`--- SIMULAÇÃO DE E-MAIL PARA GERENTE ---`);
     console.log(`Assunto: Agendamento Cancelado pelo Docente`);
@@ -42,56 +44,89 @@ const Confirmation = () => {
     console.log(`--------------------------------------`);
   };
 
-  if (!booking) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+  const renderContent = () => {
+    // 1. Handle booking not found
+    if (!booking) {
+      return (
         <Card className="w-full max-w-md text-center p-8">
           <CardHeader>
             <CardTitle>Agendamento não encontrado</CardTitle>
             <CardDescription>O link pode estar quebrado ou o agendamento foi cancelado.</CardDescription>
           </CardHeader>
         </Card>
-      </div>
-    );
-  }
+      );
+    }
 
-  if (booking.teacherConfirmation === "CONFIRMADO") {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <Card className="w-full max-w-md text-center p-8">
+    // 2. Handle immediate action taken in this session
+    if (actionTaken === "CONFIRMADO") {
+      return (
+        <Card className="w-full max-w-2xl">
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl text-green-600">Agendamento Confirmado!</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4 text-center">
+            <p>Obrigado! Por favor, envie os TPs (arquivos de apresentação) abaixo.</p>
+            <div className="p-4 text-center border-2 border-dashed rounded-md">
+              <Label>Enviar TPs</Label>
+              <p className="text-sm text-muted-foreground mt-2">A funcionalidade de upload de arquivos será implementada aqui.</p>
+            </div>
+            <Button>Enviar Arquivos (demo)</Button>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    if (actionTaken === "NEGADO") {
+      return (
+        <Card className="w-full max-w-lg text-center p-8">
           <CardHeader>
-            <CardTitle>Agendamento já Confirmado</CardTitle>
-            <CardDescription>Este agendamento já foi confirmado anteriormente. Obrigado!</CardDescription>
+            <CardTitle>Agendamento Recusado</CardTitle>
+            <CardDescription>Sua recusa foi registrada e o administrador foi notificado. Obrigado pelo aviso.</CardDescription>
           </CardHeader>
         </Card>
-      </div>
-    );
-  }
+      );
+    }
 
-  if (booking.teacherConfirmation === "NEGADO") {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+    // 3. Handle booking already actioned in a previous session
+    if (booking.teacherConfirmation) {
+      return (
         <Card className="w-full max-w-md text-center p-8">
           <CardHeader>
-            <CardTitle>Agendamento Cancelado</CardTitle>
-            <CardDescription>Este agendamento foi cancelado por você. O administrador foi notificado.</CardDescription>
+            <CardTitle>Link Expirado</CardTitle>
+            <CardDescription>Este agendamento já foi respondido. Obrigado!</CardDescription>
           </CardHeader>
         </Card>
-      </div>
-    );
-  }
+      );
+    }
 
-  return (
-    <main className="flex items-center justify-center min-h-screen bg-gray-50">
-      <Helmet>
-        <title>Confirmação de Agendamento</title>
-      </Helmet>
+    // 4. Handle user interaction for denial reason
+    if (isDenying) {
+      return (
+        <Card className="w-full max-w-2xl">
+          <CardHeader className="text-center"><CardTitle>Recusar Agendamento</CardTitle></CardHeader>
+          <CardContent className="space-y-4">
+            <Label htmlFor="cancellationReason">Por favor, informe o motivo da recusa (opcional):</Label>
+            <Textarea
+              id="cancellationReason"
+              placeholder="Ex: Tive um imprevisto e não poderei comparecer."
+              value={cancellationReason}
+              onChange={(e) => setCancellationReason(e.target.value)}
+            />
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" onClick={() => setIsDenying(false)}>Voltar</Button>
+              <Button variant="destructive" onClick={handleDeny}>Confirmar Recusa</Button>
+            </div>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    // 5. Default view: show booking details and action buttons
+    return (
       <Card className="w-full max-w-2xl">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">Confirmação de Agendamento de Gravação</CardTitle>
-          <CardDescription>
-            Por favor, confirme ou recuse o agendamento abaixo.
-          </CardDescription>
+          <CardDescription>Por favor, confirme ou recuse o agendamento abaixo.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="p-4 border rounded-md space-y-2">
@@ -101,45 +136,21 @@ const Confirmation = () => {
             <p><strong>Data:</strong> {format(new Date(booking.date.replace(/-/g, '/')), "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}</p>
             <p><strong>Horário:</strong> {booking.start} às {booking.end} ({booking.period})</p>
           </div>
-
-          {isConfirmed ? (
-            <div className="space-y-4 text-center">
-              <h3 className="text-xl font-bold text-green-600">Agendamento Confirmado!</h3>
-              <p>Obrigado! Por favor, envie os TPs (arquivos de apresentação) abaixo.</p>
-              <div className="p-4 text-center border-2 border-dashed rounded-md">
-                <Label>Enviar TPs</Label>
-                <p className="text-sm text-muted-foreground mt-2">
-                  A funcionalidade de upload de arquivos será implementada aqui.
-                </p>
-              </div>
-               <Button>Enviar Arquivos (demo)</Button>
-            </div>
-          ) : isDenying ? (
-            <div className="space-y-4">
-              <Label htmlFor="cancellationReason">Motivo da recusa (opcional)</Label>
-              <Textarea
-                id="cancellationReason"
-                placeholder="Ex: Tive um imprevisto e não poderei comparecer."
-                value={cancellationReason}
-                onChange={(e) => setCancellationReason(e.target.value)}
-              />
-              <div className="flex justify-end gap-2">
-                <Button variant="ghost" onClick={() => setIsDenying(false)}>Voltar</Button>
-                <Button variant="destructive" onClick={handleDeny}>Confirmar Recusa</Button>
-              </div>
-            </div>
-          ) : (
-            <div className="flex justify-around gap-4">
-              <Button variant="destructive" size="lg" onClick={() => setIsDenying(true)}>
-                Recusar Agendamento
-              </Button>
-              <Button variant="default" size="lg" onClick={handleConfirm}>
-                Confirmar Agendamento
-              </Button>
-            </div>
-          )}
+          <div className="flex justify-around gap-4">
+            <Button variant="destructive" size="lg" onClick={() => setIsDenying(true)}>Recusar Agendamento</Button>
+            <Button variant="default" size="lg" onClick={handleConfirm}>Confirmar Agendamento</Button>
+          </div>
         </CardContent>
       </Card>
+    );
+  };
+
+  return (
+    <main className="flex items-center justify-center min-h-screen bg-gray-50">
+      <Helmet>
+        <title>Confirmação de Agendamento</title>
+      </Helmet>
+      {renderContent()}
     </main>
   );
 };
