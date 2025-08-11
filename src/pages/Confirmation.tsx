@@ -55,13 +55,26 @@ const Confirmation = () => {
     );
   }
 
-  if (booking.teacherConfirmation === "CONFIRMADO" || booking.teacherConfirmation === "NEGADO") {
+  if (booking.teacherConfirmation === "CONFIRMADO") {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <Card className="w-full max-w-md text-center p-8">
           <CardHeader>
-            <CardTitle>Link Expirado</CardTitle>
-            <CardDescription>Este agendamento já foi respondido. Obrigado!</CardDescription>
+            <CardTitle>Agendamento já Confirmado</CardTitle>
+            <CardDescription>Este agendamento já foi confirmado anteriormente. Obrigado!</CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    );
+  }
+
+  if (booking.teacherConfirmation === "NEGADO") {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <Card className="w-full max-w-md text-center p-8">
+          <CardHeader>
+            <CardTitle>Agendamento Cancelado</CardTitle>
+            <CardDescription>Este agendamento foi cancelado por você. O administrador foi notificado.</CardDescription>
           </CardHeader>
         </Card>
       </div>

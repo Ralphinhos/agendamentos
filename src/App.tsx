@@ -11,6 +11,7 @@ import Admin from "./pages/Admin";
 import Editor from "./pages/Editor";
 import Confirmation from "./pages/Confirmation";
 import LoginPage from "./pages/Login";
+import NotificationsPage from "./pages/Notifications";
 import Header from "./components/Header";
 import { BookingsProvider } from "./context/BookingsContext";
 import { AuthProvider, useAuth } from "./context/AuthContext";
@@ -48,6 +49,7 @@ const AppContent = () => {
         <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
           <Route path="/" element={<Index />} />
           <Route path="/agendamentos" element={<Admin />} />
+          <Route path="/notificacoes" element={<NotificationsPage />} />
         </Route>
         <Route element={<ProtectedRoute allowedRoles={['editor']} />}>
           <Route path="/editor" element={<Editor />} />
