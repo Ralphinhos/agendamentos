@@ -22,8 +22,16 @@ import {
   SortingState,
   getSortedRowModel,
   getFilteredRowModel,
+  getExpandedRowModel,
+  ExpandedState,
 } from "@tanstack/react-table"
 import { Input } from "@/components/ui/input";
+import { ChevronDown } from "lucide-react";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible"
 
 const statusColors: Record<EditingStatus, string> = {
   pendente: "bg-red-500",
@@ -40,6 +48,7 @@ const Admin = () => {
   const { bookings } = useBookings();
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
+  const [expanded, setExpanded] = useState<ExpandedState>({});
 
   // 1. Processar dados para a tabela
   const data = useMemo<BookingWithProgress[]>(() => {
@@ -62,9 +71,26 @@ const Admin = () => {
   }, [bookings]);
 
   const columns: ColumnDef<BookingWithProgress>[] = [
+    {
+      id: 'expander',
+      header: () => null,
+      cell: ({ row }) => {
+        return row.original.editorNotes ? (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={row.getToggleExpandedHandler()}
+            className="h-8 w-8 p-0"
+          >
+            <ChevronDown className={`h-4 w-4 transition-transform ${row.getIsExpanded() ? 'rotate-180' : ''}`} />
+          </Button>
+        ) : null;
+      },
+    },
     { accessorKey: "date", header: "Data", cell: ({ row }) => format(new Date(row.original.date.replace(/-/g, '/')), "dd/MM/yyyy") },
     { accessorKey: "teacher", header: "Docente" },
     { accessorKey: "discipline", header: "Disciplina" },
+    { accessorKey: "course", header: "Curso" },
     { accessorKey: "recordedUnits", header: "Aulas Agendadas" },
     { accessorKey: "status", header: "Status Edição", cell: ({ row }) => <Badge className={cn("text-white", statusColors[row.original.status])}>{row.original.status}</Badge> },
     {
@@ -79,22 +105,42 @@ const Admin = () => {
           </div>
         )
       },
-      // Lógica para mover concluídos para o fim
       sortingFn: (rowA, rowB) => (rowA.original.disciplineProgress === 100 ? 1 : 0) - (rowB.original.disciplineProgress === 100 ? 1 : 0),
     },
   ];
 
-  const table = useReactTable({
-    data,
+  const ongoingData = useMemo(() => data.filter(b => b.disciplineProgress < 100), [data]);
+  const completedData = useMemo(() => data.filter(b => b.disciplineProgress === 100), [data]);
+
+  const ongoingTable = useReactTable({
+    data: ongoingData,
     columns,
     getCoreRowModel: getCoreRowModel(),
     onSortingChange: setSorting,
     getSortedRowModel: getSortedRowModel(),
     onGlobalFilterChange: setGlobalFilter,
     getFilteredRowModel: getFilteredRowModel(),
+    onExpandedChange: setExpanded,
+    getExpandedRowModel: getExpandedRowModel(),
     state: {
       sorting,
       globalFilter,
+      expanded,
+    },
+  });
+
+  const completedTable = useReactTable({
+    data: completedData,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    onExpandedChange: setExpanded,
+    getExpandedRowModel: getExpandedRowModel(),
+    state: {
+      sorting,
+      globalFilter,
+      expanded,
     },
   });
 
@@ -123,7 +169,7 @@ const Admin = () => {
       <div className="rounded-lg border bg-card">
         <Table>
           <TableHeader>
-            {table.getHeaderGroups().map(headerGroup => (
+            {ongoingTable.getHeaderGroups().map(headerGroup => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map(header => (
                   <TableHead key={header.id} onClick={header.column.getToggleSortingHandler()}>
@@ -135,26 +181,95 @@ const Admin = () => {
             ))}
           </TableHeader>
           <TableBody>
-            {table.getRowModel().rows.length > 0 ? (
-              table.getRowModel().rows.map(row => (
-                <TableRow key={row.id}>
-                  {row.getVisibleCells().map(cell => (
-                    <TableCell key={cell.id}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </TableCell>
-                  ))}
-                </TableRow>
+            {ongoingTable.getRowModel().rows.length > 0 ? (
+              ongoingTable.getRowModel().rows.map(row => (
+                <>
+                  <TableRow key={row.id}>
+                    {row.getVisibleCells().map(cell => (
+                      <TableCell key={cell.id}>
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                  {row.getIsExpanded() && (
+                    <TableRow>
+                      <TableCell colSpan={columns.length} className="p-0">
+                        <div className="p-4 bg-muted/50">
+                          <h4 className="font-semibold mb-1">Observações do Editor:</h4>
+                          <p className="text-sm text-muted-foreground">{row.original.editorNotes}</p>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </>
               ))
             ) : (
               <TableRow>
                 <TableCell colSpan={columns.length} className="h-24 text-center">
-                  Nenhum resultado encontrado.
+                  Nenhum agendamento em andamento.
                 </TableCell>
               </TableRow>
             )}
           </TableBody>
         </Table>
       </div>
+
+      <Collapsible className="mt-6">
+        <CollapsibleTrigger asChild>
+          <div className="flex items-center gap-2 cursor-pointer">
+            <h2 className="text-xl font-semibold">Disciplinas Concluídas</h2>
+            <ChevronDown className="h-5 w-5 transition-transform [&[data-state=open]]:rotate-180" />
+          </div>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="mt-4">
+          <div className="rounded-lg border bg-card">
+            <Table>
+              <TableHeader>
+                {completedTable.getHeaderGroups().map(headerGroup => (
+                  <TableRow key={headerGroup.id}>
+                    {headerGroup.headers.map(header => (
+                      <TableHead key={header.id}>
+                        {flexRender(header.column.columnDef.header, header.getContext())}
+                      </TableHead>
+                    ))}
+                  </TableRow>
+                ))}
+              </TableHeader>
+              <TableBody>
+                {completedTable.getRowModel().rows.length > 0 ? (
+                  completedTable.getRowModel().rows.map(row => (
+                    <>
+                      <TableRow key={row.id}>
+                        {row.getVisibleCells().map(cell => (
+                          <TableCell key={cell.id}>
+                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                      {row.getIsExpanded() && (
+                        <TableRow>
+                          <TableCell colSpan={columns.length} className="p-0">
+                            <div className="p-4 bg-muted/50">
+                              <h4 className="font-semibold mb-1">Observações do Editor:</h4>
+                              <p className="text-sm text-muted-foreground">{row.original.editorNotes}</p>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={columns.length} className="h-24 text-center">
+                      Nenhuma disciplina concluída.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
     </main>
   );
 };
