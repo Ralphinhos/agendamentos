@@ -173,7 +173,7 @@ function Index() {
               }}
               modifiersClassNames={{
                 holiday: "text-red-500",
-                booked: "font-bold text-primary",
+                booked: "bg-brand-blue text-white rounded-full",
               }}
             />
           </div>
