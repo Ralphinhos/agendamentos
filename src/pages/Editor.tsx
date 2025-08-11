@@ -90,6 +90,7 @@ const Editor = () => {
               <TableHead>Data</TableHead>
               <TableHead>Docente</TableHead>
               <TableHead>Disciplina</TableHead>
+              <TableHead>Aulas Agendadas</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
@@ -103,6 +104,7 @@ const Editor = () => {
                   </TableCell>
                   <TableCell>{b.teacher}</TableCell>
                   <TableCell>{b.discipline}</TableCell>
+                  <TableCell>{b.recordedUnits}</TableCell>
                   <TableCell>
                     <Badge
                       className={cn("cursor-pointer text-white hover:brightness-125 transition-all", statusColors[b.status])}
