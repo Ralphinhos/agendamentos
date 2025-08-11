@@ -29,29 +29,22 @@ const AppContent = () => {
     idleTimeout: 1000 * 60 * 10, // 10 minutos
   });
 
-  // Only run the timer if a user is logged in
-  if (!role) {
-    return (
-      <>
-        <Header />
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/confirmacao/:bookingId" element={<Confirmation />} />
-          <Route path="*" element={<LoginPage />} />
-        </Routes>
-      </>
-    );
-  }
-
   return (
     <>
-      <SessionTimeoutDialog
-        isOpen={isWarning}
-        onContinue={resetIdleTimer}
-        onLogout={logout}
-      />
+      {role && (
+        <SessionTimeoutDialog
+          isOpen={isWarning}
+          onContinue={resetIdleTimer}
+          onLogout={logout}
+        />
+      )}
       <Header />
       <Routes>
+        {/* Public Routes */}
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/confirmacao/:bookingId" element={<Confirmation />} />
+
+        {/* Protected Routes */}
         <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
           <Route path="/" element={<Index />} />
           <Route path="/agendamentos" element={<Admin />} />
@@ -59,6 +52,8 @@ const AppContent = () => {
         <Route element={<ProtectedRoute allowedRoles={['editor']} />}>
           <Route path="/editor" element={<Editor />} />
         </Route>
+
+        {/* Catch-all */}
         <Route path="*" element={<NotFound />} />
       </Routes>
     </>

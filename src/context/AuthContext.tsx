@@ -42,10 +42,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const value = useMemo(() => ({ role, login, logout, isLoading }), [role, isLoading]);
 
-  // Render children only after loading the role from storage
   return (
     <AuthContext.Provider value={value}>
-      {!isLoading && children}
+      {children}
     </AuthContext.Provider>
   );
 };
