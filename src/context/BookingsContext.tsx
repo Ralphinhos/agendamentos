@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useState, useCallback } from "react";
 
 export type EditingStatus = "pendente" | "em-andamento" | "concluída";
 
@@ -33,6 +33,9 @@ export interface Booking {
   // Notificação de upload
   uploadCompleted?: boolean;
   uploadNotificationRead?: boolean;
+  // Nova flag para indicar que a gravação do dia foi entregue
+  recordingStatus?: 'delivered';
+  completionDate?: string; // YYYY-MM-DD
 }
 
 interface BookingsContextValue {
@@ -81,15 +84,43 @@ export const BookingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     };
   }, []);
 
-  const addBooking = (booking: Booking) => setBookings((prev) => [booking, ...prev]);
-  const updateBooking = (id: string, patch: Partial<Booking>) =>
-    setBookings((prev) => prev.map((b) => (b.id === id ? { ...b, ...patch } : b)));
-  const removeBooking = (id: string) => setBookings((prev) => prev.filter((b) => b.id !== id));
+  const addBooking = useCallback((booking: Booking) => setBookings((prev) => [booking, ...prev]), []);
 
-  const getBySlot = (date: string, period: Booking["period"]) =>
-    bookings.find((b) => b.date === date && b.period === period && b.teacherConfirmation !== 'NEGADO');
+  const updateBooking = useCallback((id: string, patch: Partial<Booking>) => {
+    setBookings((prev) => {
+      const updatedBookings = prev.map((b) => (b.id === id ? { ...b, ...patch } : b));
 
-  const getDisciplineProgress = (disciplineName: string) => {
+      const updatedBooking = updatedBookings.find(b => b.id === id);
+      if (!updatedBooking || !updatedBooking.discipline) {
+        return updatedBookings;
+      }
+
+      // Lógica para data de conclusão
+      const disciplineBookings = updatedBookings.filter(b => b.discipline === updatedBooking.discipline);
+      const totalUnits = disciplineBookings[0]?.totalUnits ?? 0;
+      const actualRecorded = disciplineBookings.reduce((acc, b) => acc + (b.lessonsRecorded ?? b.recordedUnits ?? 0), 0);
+
+      if (totalUnits > 0 && actualRecorded >= totalUnits) {
+        const completionDate = new Date().toISOString().split('T')[0];
+        return updatedBookings.map(b =>
+          b.discipline === updatedBooking.discipline
+            ? { ...b, completionDate: b.completionDate || completionDate }
+            : b
+        );
+      }
+
+      return updatedBookings;
+    });
+  }, []);
+
+  const removeBooking = useCallback((id: string) => setBookings((prev) => prev.filter((b) => b.id !== id)), []);
+
+  const getBySlot = useCallback((date: string, period: Booking["period"]) =>
+    bookings.find((b) => b.date === date && b.period === period && b.teacherConfirmation !== 'NEGADO'),
+    [bookings]
+  );
+
+  const getDisciplineProgress = useCallback((disciplineName: string) => {
     const disciplineBookings = bookings.filter(b => b.discipline === disciplineName);
     if (disciplineBookings.length === 0) return null;
 
@@ -99,11 +130,11 @@ export const BookingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }, 0);
 
     return { totalUnits, actualRecorded };
-  };
+  }, [bookings]);
 
   const value = useMemo(
     () => ({ bookings, addBooking, updateBooking, removeBooking, getBySlot, getDisciplineProgress }),
-    [bookings]
+    [bookings, addBooking, updateBooking, removeBooking, getBySlot, getDisciplineProgress]
   );
 
   return <BookingsContext.Provider value={value}>{children}</BookingsContext.Provider>;

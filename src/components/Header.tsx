@@ -27,10 +27,10 @@ const Header = () => {
     );
   }, [bookings]);
 
-  const editorUnreadCancellations = useMemo(() => {
-    // Notifica o editor sobre cancelamentos de professor ou admin que eles não leram
+  const editorNotifications = useMemo(() => {
     return bookings.filter(b =>
-      (b.teacherConfirmation === "NEGADO" || b.status === "cancelado") && !b.cancellationReadByEditor
+      ((b.teacherConfirmation === "NEGADO" || b.status === "cancelado") && !b.cancellationReadByEditor) ||
+      (b.uploadCompleted && !b.uploadNotificationRead)
     );
   }, [bookings]);
 
@@ -152,7 +152,7 @@ const Header = () => {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="relative">
                     <Bell className="h-4 w-4" />
-                    {editorUnreadCancellations.length > 0 && (
+                    {editorNotifications.length > 0 && (
                       <span className="absolute top-1 right-1 flex h-2 w-2">
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
                         <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
@@ -160,24 +160,46 @@ const Header = () => {
                     )}
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-64">
+                <DropdownMenuContent align="end" className="w-80">
                   <DropdownMenuLabel>Notificações (Editor)</DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  {editorUnreadCancellations.length > 0 ? (
-                    editorUnreadCancellations.map(b => (
-                      <DropdownMenuItem key={b.id} onSelect={() => updateBooking(b.id, { cancellationReadByEditor: true })}>
-                        <div className="flex flex-col">
-                          <span className="font-semibold">Cancelamento: {b.discipline}</span>
-                          <span className="text-xs text-muted-foreground">
-                            {b.teacherConfirmation === 'NEGADO' ? `Docente ${b.teacher} negou.` : `Cancelado pelo editor.`}
-                          </span>
-                          {b.cancellationReason && <span className="text-xs text-muted-foreground italic">"{b.cancellationReason}"</span>}
-                        </div>
-                      </DropdownMenuItem>
-                    ))
+                  {editorNotifications.length > 0 ? (
+                    editorNotifications.map(b => {
+                      const isUpload = b.uploadCompleted && !b.uploadNotificationRead;
+                      const isCancellation = (b.teacherConfirmation === "NEGADO" || b.status === "cancelado") && !b.cancellationReadByEditor;
+
+                      const handleSelect = () => {
+                        if (isUpload) updateBooking(b.id, { uploadNotificationRead: true });
+                        if (isCancellation) updateBooking(b.id, { cancellationReadByEditor: true });
+                      };
+
+                      return (
+                        <DropdownMenuItem key={b.id} onSelect={handleSelect}>
+                          <div className="flex flex-col">
+                            {isCancellation && <>
+                              <span className="font-semibold">Cancelamento: {b.discipline}</span>
+                              <span className="text-xs text-muted-foreground">
+                                {b.teacherConfirmation === 'NEGADO' ? `Docente ${b.teacher} negou.` : `Cancelado pelo admin.`}
+                              </span>
+                               {b.cancellationReason && <span className="text-xs text-muted-foreground italic">"{b.cancellationReason}"</span>}
+                            </>}
+                            {isUpload && <>
+                              <span className="font-semibold">Upload Concluído</span>
+                              <span className="text-xs text-muted-foreground">Você enviou arquivos para: {b.discipline}</span>
+                            </>}
+                          </div>
+                        </DropdownMenuItem>
+                      );
+                    })
                   ) : (
                     <DropdownMenuItem disabled>Nenhuma notificação nova</DropdownMenuItem>
                   )}
+                   <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link to="/notifications" className="w-full justify-center">
+                      Ver todas as notificações
+                    </Link>
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </>
