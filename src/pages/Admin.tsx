@@ -67,7 +67,9 @@ const Admin = () => {
   const data = useMemo<BookingWithProgress[]>(() => {
     const progressMap: Record<string, { totalUnits: number; actualRecorded: number }> = {};
 
-    bookings.forEach(b => {
+    const activeBookings = bookings.filter(b => b.teacherConfirmation !== 'NEGADO' && b.status !== 'cancelado');
+
+    activeBookings.forEach(b => {
       if (!b.discipline || !b.totalUnits) return;
       if (!progressMap[b.discipline]) {
         progressMap[b.discipline] = { totalUnits: b.totalUnits, actualRecorded: 0 };
@@ -76,7 +78,7 @@ const Admin = () => {
       progressMap[b.discipline].actualRecorded += unitsToAdd;
     });
 
-    return bookings.map(b => {
+    return activeBookings.map(b => {
       const progress = progressMap[b.discipline];
       const percentage = progress ? (progress.actualRecorded / progress.totalUnits) * 100 : 0;
       return { ...b, disciplineProgress: Math.min(percentage, 100) };
@@ -101,9 +103,13 @@ const Admin = () => {
       },
     },
     { accessorKey: "date", header: "Data", cell: ({ row }) => format(new Date(row.original.date.replace(/-/g, '/')), "dd/MM/yyyy") },
-    { accessorKey: "teacher", header: "Docente" },
-    { accessorKey: "discipline", header: "Disciplina" },
+    {
+      id: "time",
+      header: "Horário",
+      cell: ({ row }) => `${row.original.start} - ${row.original.end}`,
+    },
     { accessorKey: "course", header: "Curso" },
+    { accessorKey: "discipline", header: "Disciplina" },
     { accessorKey: "recordedUnits", header: "Aulas Agendadas" },
     { accessorKey: "status", header: "Status Edição", cell: ({ row }) => <Badge className={cn("text-white", statusColors[row.original.status])}>{row.original.status}</Badge> },
     {
@@ -119,11 +125,6 @@ const Admin = () => {
         )
       },
       sortingFn: (rowA, rowB) => (rowA.original.disciplineProgress === 100 ? 1 : 0) - (rowB.original.disciplineProgress === 100 ? 1 : 0),
-    },
-    {
-      id: "time",
-      header: "Horário",
-      cell: ({ row }) => `${row.original.start} - ${row.original.end}`,
     },
   ];
 
@@ -212,7 +213,7 @@ const Admin = () => {
                     ))}
                   </TableRow>
                   {row.getIsExpanded() && (
-                    <TableRow>
+                    <TableRow key={`${row.id}-expanded`}>
                       <TableCell colSpan={columns.length} className="p-0">
                         <div className="p-4 bg-muted/50">
                           <h4 className="font-semibold mb-1">Observações do Editor:</h4>
@@ -267,7 +268,7 @@ const Admin = () => {
                         ))}
                       </TableRow>
                       {row.getIsExpanded() && (
-                        <TableRow>
+                        <TableRow key={`${row.id}-completed-expanded`}>
                           <TableCell colSpan={columns.length} className="p-0">
                             <div className="p-4 bg-muted/50">
                               <h4 className="font-semibold mb-1">Observações do Editor:</h4>

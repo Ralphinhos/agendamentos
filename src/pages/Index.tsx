@@ -21,7 +21,7 @@ import { toast } from "@/hooks/use-toast";
 import { format, isSameDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useMemo } from "react";
-import { Trash2 } from "lucide-react";
+import { Trash2, Link2, Send } from "lucide-react";
 
 interface Holiday {
   date: string;
@@ -102,7 +102,7 @@ function Index() {
       if (progress) {
         setDisciplineInfo({
           total: progress.totalUnits,
-          remaining: progress.totalUnits - progress.actualRecorded,
+          remaining: Math.max(0, progress.totalUnits - progress.actualRecorded),
         });
       } else {
         setDisciplineInfo(null);
@@ -239,57 +239,60 @@ function Index() {
                     };
 
                     return (
-                      <div key={slot.period} className="flex items-center justify-between rounded-md border p-3">
-                        <div>
+                      <div key={slot.period} className="flex items-start justify-between rounded-md border p-3">
+                        <div className="flex-1">
                           <div className="text-xs text-muted-foreground">{slot.period}</div>
                           <div className="font-medium">{slot.start} – {slot.end}</div>
                           {booked && (
                             <div className="text-xs text-muted-foreground mt-1 space-y-1">
                               <p>Reservado por <strong>{booked.teacher}</strong></p>
                               <p>{booked.course} / {booked.discipline}</p>
-                              <div className="flex gap-2">
-                                <Button variant="link" size="sm" className="h-auto p-0" onClick={copyLink}>
-                                  Copiar link
-                                </Button>
-                                <Button variant="link" size="sm" className="h-auto p-0 text-green-600" onClick={() => sendWhatsApp(confirmationLink, booked.teacher)}>
-                                  Enviar WhatsApp (Sim)
-                                </Button>
-                                <AlertDialog>
-                                  <AlertDialogTrigger asChild>
-                                    <Button variant="link" size="sm" className="h-auto p-0 text-red-600">
-                                      Excluir
-                                    </Button>
-                                  </AlertDialogTrigger>
-                                  <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                      <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
-                                      <AlertDialogDescription>
-                                        Esta ação não pode ser desfeita. Isso irá remover permanentemente o agendamento.
-                                      </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                      <AlertDialogAction onClick={() => removeBooking(booked.id)} className="bg-destructive hover:bg-destructive/90">
-                                        Sim, remover
-                                      </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                  </AlertDialogContent>
-                                </AlertDialog>
-                              </div>
                             </div>
                           )}
                         </div>
-                        {!booked && (
-                          <Dialog open={open && form.dateISO === dateISO && form.period === slot.period} onOpenChange={setOpen}>
-                            <DialogTrigger asChild>
-                              <Button
-                                variant={"default"}
-                                onClick={() => openDialog(dateISO, slot.period, slot.start, slot.end)}
-                              >
-                                Agendar
+
+                        <div className="flex items-center">
+                          {booked ? (
+                            <div className="flex flex-col items-center gap-1 ml-2">
+                               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={copyLink} title="Copiar link de confirmação">
+                                <Link2 className="h-4 w-4" />
                               </Button>
-                            </DialogTrigger>
-                            <DialogContent>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600 hover:text-green-700" onClick={() => sendWhatsApp(confirmationLink, booked.teacher)} title="Enviar lembrete via WhatsApp (Simulação)">
+                                <Send className="h-4 w-4" />
+                              </Button>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-red-600 hover:text-red-700" title="Excluir agendamento">
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Esta ação não pode ser desfeita. Isso irá remover permanentemente o agendamento.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => removeBooking(booked.id)} className="bg-destructive hover:bg-destructive/90">
+                                      Sim, remover
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
+                          ) : (
+                            <Dialog open={open && form.dateISO === dateISO && form.period === slot.period} onOpenChange={setOpen}>
+                              <DialogTrigger asChild>
+                                <Button
+                                  variant={"default"}
+                                  onClick={() => openDialog(dateISO, slot.period, slot.start, slot.end)}
+                                >
+                                  Agendar
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent>
                               <DialogHeader>
                                 <DialogTitle>
                                   Agendar para {form.dateISO ? format(new Date(form.dateISO.replace(/-/g, '/')), "dd/MM/yyyy") : ""} · {form.period}
@@ -314,7 +317,6 @@ function Index() {
                                 {disciplineInfo && (
                                   <p className="text-sm text-muted-foreground">
                                     Unidades restantes para gravar: {disciplineInfo.remaining} de {disciplineInfo.total}.
-                                    Este agendamento irá registrar {form.totalUnits / 2} unidades.
                                   </p>
                                 )}
                               </div>
