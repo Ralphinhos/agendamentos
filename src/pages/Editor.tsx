@@ -55,8 +55,9 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Upload } from "lucide-react";
 import { BookingWithProgress } from "./Admin"; // Reutilizando o tipo
+import { Link } from "react-router-dom";
 
 const statusColors: Record<EditingStatus, string> = {
   pendente: "bg-red-500",
@@ -108,26 +109,11 @@ const CancelBookingDialog = ({ onConfirm }: { onConfirm: (reason: string) => voi
   )
 }
 
-const EditDetailsDialog = ({ booking, onSave, updateBooking }: { booking: Booking, onSave: (data: Partial<Booking>) => void, updateBooking: (id: string, patch: Partial<Booking>) => void }) => {
+const EditDetailsDialog = ({ booking, onSave }: { booking: Booking, onSave: (data: Partial<Booking>) => void }) => {
   const [formData, setFormData] = useState({
     lessonsRecorded: booking.lessonsRecorded ?? 0,
     editorNotes: booking.editorNotes ?? "",
   });
-  const [fileToUpload, setFileToUpload] = useState<File | null>(null);
-
-  const handleDriveUpload = () => {
-    if (!fileToUpload) return;
-
-    // Simula o upload e depois atualiza o booking para notificar o admin
-    updateBooking(booking.id, {
-      uploadCompleted: true,
-      uploadNotificationRead: false,
-      recordingStatus: 'delivered', // Nova flag
-    });
-
-    toast({ title: "Upload Concluído", description: `Arquivo ${fileToUpload.name} enviado. O Admin foi notificado.` });
-    setFileToUpload(null);
-  };
 
   const handleSave = () => {
     onSave(formData);
@@ -156,13 +142,6 @@ const EditDetailsDialog = ({ booking, onSave, updateBooking }: { booking: Bookin
             onChange={(e) => setFormData(prev => ({ ...prev, editorNotes: e.target.value }))}
           />
         </div>
-        <div>
-          <Label>Enviar para o Drive</Label>
-          <div className="p-4 space-y-3 border-2 border-dashed rounded-md">
-            <Input type="file" onChange={(e) => setFileToUpload(e.target.files ? e.target.files[0] : null)} />
-            <Button className="w-full" disabled={!fileToUpload} onClick={handleDriveUpload}>Subir para o Drive (Sim)</Button>
-          </div>
-        </div>
       </div>
       <DialogFooter>
         <DialogClose asChild><Button variant="outline">Cancelar</Button></DialogClose>
@@ -174,7 +153,7 @@ const EditDetailsDialog = ({ booking, onSave, updateBooking }: { booking: Bookin
 
 
 const Editor = () => {
-  const { bookings, updateBooking } = useBookings();
+  const { bookings, updateBooking, revertCompletion } = useBookings();
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
   const [editingBookingId, setEditingBookingId] = useState<string | null>(null);
@@ -236,12 +215,17 @@ const Editor = () => {
       accessorKey: "status",
       header: "Status Edição",
       cell: ({ row }) => (
-        <Badge
-          className={cn("cursor-pointer text-white hover:brightness-125 transition-all", statusColors[row.original.status])}
-          onClick={() => handleStatusChange(row.original.id, row.original.status)}
-        >
-          {row.original.status}
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Badge
+            className={cn("cursor-pointer text-white hover:brightness-125 transition-all", statusColors[row.original.status])}
+            onClick={() => handleStatusChange(row.original.id, row.original.status)}
+          >
+            {row.original.status}
+          </Badge>
+          {row.original.recordingStatus === 'delivered' && (
+            <Badge variant="outline" className="text-green-600 border-green-600">Entregue</Badge>
+          )}
+        </div>
       )
     },
     {
@@ -270,8 +254,14 @@ const Editor = () => {
                 Detalhes
               </Button>
             </DialogTrigger>
-            <EditDetailsDialog booking={row.original} onSave={handleSaveDetails} updateBooking={updateBooking} />
+            <EditDetailsDialog booking={row.original} onSave={handleSaveDetails} />
           </Dialog>
+          <Button size="sm" asChild>
+            <Link to={`/upload/${row.original.id}`}>
+              <Upload className="h-4 w-4 mr-2" />
+              Upload
+            </Link>
+          </Button>
            {row.original.status !== 'concluída' && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
@@ -299,20 +289,29 @@ const Editor = () => {
     {
       id: "actions",
       cell: ({ row }) => (
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button variant="outline" size="sm">Ver Detalhes</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader><DialogTitle>Detalhes da Gravação Concluída</DialogTitle></DialogHeader>
-            <div className="space-y-2 py-4">
-              <p><strong>Curso:</strong> {row.original.course}</p>
-              <p><strong>Disciplina:</strong> {row.original.discipline}</p>
-              <p><strong>Observações Finais:</strong> {row.original.editorNotes || "Nenhuma"}</p>
-              <p><strong>Aulas Gravadas (Total):</strong> {row.original.lessonsRecorded}</p>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <div className="flex items-center gap-2">
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm">Ver Detalhes</Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader><DialogTitle>Detalhes da Gravação Concluída</DialogTitle></DialogHeader>
+              <div className="space-y-2 py-4">
+                <p><strong>Curso:</strong> {row.original.course}</p>
+                <p><strong>Disciplina:</strong> {row.original.discipline}</p>
+                <p><strong>Observações Finais:</strong> {row.original.editorNotes || "Nenhuma"}</p>
+                <p><strong>Aulas Gravadas (Total):</strong> {row.original.lessonsRecorded}</p>
+              </div>
+            </DialogContent>
+          </Dialog>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => revertCompletion(row.original.discipline)}
+          >
+            Reverter
+          </Button>
+        </div>
       )
     }
   ];

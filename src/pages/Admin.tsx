@@ -27,18 +27,14 @@ import {
   ExpandedState,
 } from "@tanstack/react-table"
 import { Input } from "@/components/ui/input";
-import { ChevronDown, Trash2 } from "lucide-react";
+import { ChevronDown, FileText } from "lucide-react";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import {
   Collapsible,
   CollapsibleContent,
@@ -86,22 +82,6 @@ const Admin = () => {
   }, [bookings]);
 
   const columns: ColumnDef<BookingWithProgress>[] = [
-    {
-      id: 'expander',
-      header: () => null,
-      cell: ({ row }) => {
-        return row.original.editorNotes ? (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={row.getToggleExpandedHandler()}
-            className="h-8 w-8 p-0"
-          >
-            <ChevronDown className={`h-4 w-4 transition-transform ${row.getIsExpanded() ? 'rotate-180' : ''}`} />
-          </Button>
-        ) : null;
-      },
-    },
     { accessorKey: "date", header: "Data", cell: ({ row }) => format(new Date(row.original.date.replace(/-/g, '/')), "dd/MM/yyyy") },
     {
       id: "time",
@@ -126,6 +106,29 @@ const Admin = () => {
       },
       sortingFn: (rowA, rowB) => (rowA.original.disciplineProgress === 100 ? 1 : 0) - (rowB.original.disciplineProgress === 100 ? 1 : 0),
     },
+    {
+      id: 'actions',
+      header: "Ações",
+      cell: ({ row }) => {
+        return row.original.editorNotes ? (
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="ghost" size="icon" title="Ver Observações">
+                <FileText className="h-4 w-4" />
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Observações do Editor</DialogTitle>
+              </DialogHeader>
+              <div className="py-4">
+                <p className="text-sm text-muted-foreground">{row.original.editorNotes}</p>
+              </div>
+            </DialogContent>
+          </Dialog>
+        ) : null;
+      },
+    }
   ];
 
   const ongoingData = useMemo(() => data.filter(b => b.disciplineProgress < 100), [data]);
@@ -148,9 +151,20 @@ const Admin = () => {
     },
   });
 
+  const completedAdminColumns: ColumnDef<BookingWithProgress>[] = columns.filter(c => c.id !== 'time');
+  const dateColumnIndex = completedAdminColumns.findIndex(c => c.accessorKey === 'date');
+  completedAdminColumns.splice(dateColumnIndex + 1, 0, {
+      accessorKey: "completionDate",
+      header: "Data de Conclusão",
+      cell: ({ row }) => row.original.completionDate
+        ? format(new Date(row.original.completionDate.replace(/-/g, '/')), "dd/MM/yyyy")
+        : "N/A"
+  });
+
+
   const completedTable = useReactTable({
     data: completedData,
-    columns,
+    columns: completedAdminColumns,
     getCoreRowModel: getCoreRowModel(),
     onSortingChange: setSorting,
     getSortedRowModel: getSortedRowModel(),
@@ -204,25 +218,13 @@ const Admin = () => {
           <TableBody>
             {ongoingTable.getRowModel().rows.length > 0 ? (
               ongoingTable.getRowModel().rows.map(row => (
-                <React.Fragment key={row.id}>
-                  <TableRow>
-                    {row.getVisibleCells().map(cell => (
-                      <TableCell key={cell.id}>
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                  {row.getIsExpanded() && (
-                    <TableRow key={`${row.id}-expanded`}>
-                      <TableCell colSpan={columns.length} className="p-0">
-                        <div className="p-4 bg-muted/50">
-                          <h4 className="font-semibold mb-1">Observações do Editor:</h4>
-                          <p className="text-sm text-muted-foreground">{row.original.editorNotes}</p>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </React.Fragment>
+                <TableRow key={row.id}>
+                  {row.getVisibleCells().map(cell => (
+                    <TableCell key={cell.id}>
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </TableCell>
+                  ))}
+                </TableRow>
               ))
             ) : (
               <TableRow>
@@ -259,25 +261,13 @@ const Admin = () => {
               <TableBody>
                 {completedTable.getRowModel().rows.length > 0 ? (
                   completedTable.getRowModel().rows.map(row => (
-                    <React.Fragment key={row.id}>
-                      <TableRow>
-                        {row.getVisibleCells().map(cell => (
-                          <TableCell key={cell.id}>
-                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                      {row.getIsExpanded() && (
-                        <TableRow key={`${row.id}-completed-expanded`}>
-                          <TableCell colSpan={columns.length} className="p-0">
-                            <div className="p-4 bg-muted/50">
-                              <h4 className="font-semibold mb-1">Observações do Editor:</h4>
-                              <p className="text-sm text-muted-foreground">{row.original.editorNotes}</p>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </React.Fragment>
+                    <TableRow key={row.id}>
+                      {row.getVisibleCells().map(cell => (
+                        <TableCell key={cell.id}>
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </TableCell>
+                      ))}
+                    </TableRow>
                   ))
                 ) : (
                   <TableRow>

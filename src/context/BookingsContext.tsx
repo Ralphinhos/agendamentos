@@ -43,6 +43,7 @@ interface BookingsContextValue {
   addBooking: (booking: Booking) => void;
   updateBooking: (id: string, patch: Partial<Booking>) => void;
   removeBooking: (id: string) => void;
+  revertCompletion: (disciplineName: string) => void;
   getBySlot: (date: string, period: Booking["period"]) => Booking | undefined;
   getDisciplineProgress: (disciplineName: string) => { totalUnits: number; actualRecorded: number } | null;
 }
@@ -115,6 +116,18 @@ export const BookingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const removeBooking = useCallback((id: string) => setBookings((prev) => prev.filter((b) => b.id !== id)), []);
 
+  const revertCompletion = useCallback((disciplineName: string) => {
+    setBookings((prev) =>
+      prev.map((b) => {
+        if (b.discipline === disciplineName) {
+          const { completionDate, ...rest } = b;
+          return { ...rest, status: "em-andamento" as EditingStatus };
+        }
+        return b;
+      })
+    );
+  }, []);
+
   const getBySlot = useCallback((date: string, period: Booking["period"]) =>
     bookings.find((b) => b.date === date && b.period === period && b.teacherConfirmation !== 'NEGADO'),
     [bookings]
@@ -133,8 +146,8 @@ export const BookingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [bookings]);
 
   const value = useMemo(
-    () => ({ bookings, addBooking, updateBooking, removeBooking, getBySlot, getDisciplineProgress }),
-    [bookings, addBooking, updateBooking, removeBooking, getBySlot, getDisciplineProgress]
+    () => ({ bookings, addBooking, updateBooking, removeBooking, getBySlot, getDisciplineProgress, revertCompletion }),
+    [bookings, addBooking, updateBooking, removeBooking, getBySlot, getDisciplineProgress, revertCompletion]
   );
 
   return <BookingsContext.Provider value={value}>{children}</BookingsContext.Provider>;
