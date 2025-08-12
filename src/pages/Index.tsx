@@ -3,6 +3,17 @@ import { useEffect, useState } from "react";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useBookings } from "@/context/BookingsContext";
@@ -10,6 +21,7 @@ import { toast } from "@/hooks/use-toast";
 import { format, isSameDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useMemo } from "react";
+import { Trash2 } from "lucide-react";
 
 interface Holiday {
   date: string;
@@ -27,14 +39,14 @@ function formatDateISO(d: Date) {
 }
 
 function Index() {
-  const { addBooking, getBySlot, bookings, getDisciplineProgress } = useBookings();
+  const { addBooking, getBySlot, bookings, getDisciplineProgress, removeBooking } = useBookings();
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [disciplineInfo, setDisciplineInfo] = useState<{ remaining: number, total: number } | null>(null);
 
   const bookedDays = useMemo(() => {
     const dates = bookings
-      .filter(b => b.teacherConfirmation !== 'NEGADO')
+      .filter(b => b.teacherConfirmation !== 'NEGADO' && b.status !== 'cancelado')
       .map(b => {
         const [year, month, day] = b.date.split('-').map(Number);
         return new Date(year, month - 1, day);
@@ -242,6 +254,27 @@ function Index() {
                                 <Button variant="link" size="sm" className="h-auto p-0 text-green-600" onClick={() => sendWhatsApp(confirmationLink, booked.teacher)}>
                                   Enviar WhatsApp (Sim)
                                 </Button>
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button variant="link" size="sm" className="h-auto p-0 text-red-600">
+                                      Excluir
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Esta ação não pode ser desfeita. Isso irá remover permanentemente o agendamento.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                      <AlertDialogAction onClick={() => removeBooking(booked.id)} className="bg-destructive hover:bg-destructive/90">
+                                        Sim, remover
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
                               </div>
                             </div>
                           )}
