@@ -193,7 +193,6 @@ function Index() {
                   caption: "flex justify-center pt-1 relative items-center",
                   caption_label: "text-xl font-medium",
                   nav: "space-x-1 flex items-center",
-                  nav_button: "h-10 w-10 bg-transparent p-0 hover:opacity-100",
                   table: "w-full border-collapse space-y-1",
                   head_row: "flex justify-around",
                   head_cell: "text-muted-foreground rounded-md w-12 font-normal text-lg",
