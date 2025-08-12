@@ -58,6 +58,25 @@ export const BookingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     localStorage.setItem(STORAGE_KEY, JSON.stringify(bookings));
   }, [bookings]);
 
+  // Efeito para sincronizar entre abas
+  useEffect(() => {
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === STORAGE_KEY && event.newValue) {
+        try {
+          setBookings(JSON.parse(event.newValue));
+        } catch (e) {
+          console.error("Failed to parse bookings from storage event", e);
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
+
   const addBooking = (booking: Booking) => setBookings((prev) => [booking, ...prev]);
   const updateBooking = (id: string, patch: Partial<Booking>) =>
     setBookings((prev) => prev.map((b) => (b.id === id ? { ...b, ...patch } : b)));

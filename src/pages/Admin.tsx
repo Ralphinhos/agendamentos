@@ -26,7 +26,18 @@ import {
   ExpandedState,
 } from "@tanstack/react-table"
 import { Input } from "@/components/ui/input";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import {
   Collapsible,
   CollapsibleContent,
@@ -45,10 +56,11 @@ export type BookingWithProgress = Booking & {
 };
 
 const Admin = () => {
-  const { bookings } = useBookings();
+  const { bookings, removeBooking } = useBookings();
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
-  const [expanded, setExpanded] = useState<ExpandedState>({});
+  const [ongoingExpanded, setOngoingExpanded] = useState<ExpandedState>({});
+  const [completedExpanded, setCompletedExpanded] = useState<ExpandedState>({});
 
   // 1. Processar dados para a tabela
   const data = useMemo<BookingWithProgress[]>(() => {
@@ -107,6 +119,34 @@ const Admin = () => {
       },
       sortingFn: (rowA, rowB) => (rowA.original.disciplineProgress === 100 ? 1 : 0) - (rowB.original.disciplineProgress === 100 ? 1 : 0),
     },
+    {
+      id: 'delete',
+      cell: ({ row }) => (
+        <div className="text-right">
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8 p-0 text-red-500 hover:text-red-600">
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Esta ação não pode ser desfeita. Isso irá remover permanentemente o agendamento.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={() => removeBooking(row.original.id)} className="bg-destructive hover:bg-destructive/90">
+                  Sim, remover
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+      ),
+    },
   ];
 
   const ongoingData = useMemo(() => data.filter(b => b.disciplineProgress < 100), [data]);
@@ -120,12 +160,12 @@ const Admin = () => {
     getSortedRowModel: getSortedRowModel(),
     onGlobalFilterChange: setGlobalFilter,
     getFilteredRowModel: getFilteredRowModel(),
-    onExpandedChange: setExpanded,
+    onExpandedChange: setOngoingExpanded,
     getExpandedRowModel: getExpandedRowModel(),
     state: {
       sorting,
       globalFilter,
-      expanded,
+      expanded: ongoingExpanded,
     },
   });
 
@@ -133,14 +173,16 @@ const Admin = () => {
     data: completedData,
     columns,
     getCoreRowModel: getCoreRowModel(),
+    onSortingChange: setSorting,
     getSortedRowModel: getSortedRowModel(),
+    onGlobalFilterChange: setGlobalFilter,
     getFilteredRowModel: getFilteredRowModel(),
-    onExpandedChange: setExpanded,
+    onExpandedChange: setCompletedExpanded,
     getExpandedRowModel: getExpandedRowModel(),
     state: {
       sorting,
       globalFilter,
-      expanded,
+      expanded: completedExpanded,
     },
   });
 
