@@ -1,3 +1,4 @@
+import React from "react";
 import { Helmet } from "react-helmet-async";
 import { useBookings, EditingStatus, Booking } from "@/context/BookingsContext";
 import {
@@ -120,32 +121,9 @@ const Admin = () => {
       sortingFn: (rowA, rowB) => (rowA.original.disciplineProgress === 100 ? 1 : 0) - (rowB.original.disciplineProgress === 100 ? 1 : 0),
     },
     {
-      id: 'delete',
-      cell: ({ row }) => (
-        <div className="text-right">
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8 p-0 text-red-500 hover:text-red-600">
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Esta ação não pode ser desfeita. Isso irá remover permanentemente o agendamento.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction onClick={() => removeBooking(row.original.id)} className="bg-destructive hover:bg-destructive/90">
-                  Sim, remover
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </div>
-      ),
+      id: "time",
+      header: "Horário",
+      cell: ({ row }) => `${row.original.start} - ${row.original.end}`,
     },
   ];
 
@@ -225,8 +203,8 @@ const Admin = () => {
           <TableBody>
             {ongoingTable.getRowModel().rows.length > 0 ? (
               ongoingTable.getRowModel().rows.map(row => (
-                <>
-                  <TableRow key={row.id}>
+                <React.Fragment key={row.id}>
+                  <TableRow>
                     {row.getVisibleCells().map(cell => (
                       <TableCell key={cell.id}>
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -243,7 +221,7 @@ const Admin = () => {
                       </TableCell>
                     </TableRow>
                   )}
-                </>
+                </React.Fragment>
               ))
             ) : (
               <TableRow>
@@ -280,8 +258,8 @@ const Admin = () => {
               <TableBody>
                 {completedTable.getRowModel().rows.length > 0 ? (
                   completedTable.getRowModel().rows.map(row => (
-                    <>
-                      <TableRow key={row.id}>
+                    <React.Fragment key={row.id}>
+                      <TableRow>
                         {row.getVisibleCells().map(cell => (
                           <TableCell key={cell.id}>
                             {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -298,7 +276,7 @@ const Admin = () => {
                           </TableCell>
                         </TableRow>
                       )}
-                    </>
+                    </React.Fragment>
                   ))
                 ) : (
                   <TableRow>
