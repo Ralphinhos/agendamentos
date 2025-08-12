@@ -205,7 +205,7 @@ function Index() {
                   day_hidden: "invisible",
                 }}
                 locale={ptBR}
-              disabled={[...holidayDates, { before: new Date(new Date().setDate(new Date().getDate() - 1)) }]}
+              disabled={holidayDates}
               modifiers={{
                 holiday: holidayDates,
                 booked: bookedDays,
@@ -293,39 +293,39 @@ function Index() {
                                 </Button>
                               </DialogTrigger>
                               <DialogContent>
-                              <DialogHeader>
-                                <DialogTitle>
-                                  Agendar para {form.dateISO ? format(new Date(form.dateISO.replace(/-/g, '/')), "dd/MM/yyyy") : ""} · {form.period}
-                                </DialogTitle>
-                              </DialogHeader>
-                              <div className="grid gap-4 py-4">
-                                <div className="grid items-center gap-4">
-                                  <Label htmlFor="teacher">Docente</Label>
-                                  <Input id="teacher" value={form.teacher} onChange={(e) => setForm({ ...form, teacher: e.target.value })} placeholder="Nome do docente" />
+                                <DialogHeader>
+                                  <DialogTitle>
+                                    Agendar para {form.dateISO ? format(new Date(form.dateISO.replace(/-/g, '/')), "dd/MM/yyyy") : ""} · {form.period}
+                                  </DialogTitle>
+                                </DialogHeader>
+                                <div className="grid gap-4 py-4">
+                                  <div className="grid items-center gap-4">
+                                    <Label htmlFor="teacher">Docente</Label>
+                                    <Input id="teacher" value={form.teacher} onChange={(e) => setForm({ ...form, teacher: e.target.value })} placeholder="Nome do docente" />
+                                  </div>
+                                  <div className="grid items-center gap-4">
+                                    <Label htmlFor="course">Curso</Label>
+                                    <Input id="course" value={form.course} onChange={(e) => setForm({ ...form, course: e.target.value })} placeholder="Ex: Administração" />
+                                  </div>
+                                  <div className="grid items-center gap-4">
+                                    <Label htmlFor="discipline">Disciplina</Label>
+                                    <Input id="discipline" value={form.discipline} onChange={handleDisciplineChange} placeholder="Ex: Marketing I" />
+                                  </div>
+                                  <div className="grid items-center gap-4">
+                                    <Label htmlFor="totalUnits">Total de Unidades da Disciplina</Label>
+                                    <Input id="totalUnits" type="number" value={form.totalUnits} onChange={(e) => setForm({ ...form, totalUnits: Number(e.target.value) })} placeholder="Ex: 8" disabled={!!disciplineInfo} />
+                                    {disciplineInfo && (
+                                      <p className="text-sm text-muted-foreground">
+                                        Unidades restantes para gravar: {disciplineInfo.remaining} de {disciplineInfo.total}.
+                                      </p>
+                                    )}
+                                  </div>
                                 </div>
-                                <div className="grid items-center gap-4">
-                                  <Label htmlFor="course">Curso</Label>
-                                  <Input id="course" value={form.course} onChange={(e) => setForm({ ...form, course: e.target.value })} placeholder="Ex: Administração" />
+                                <div className="flex justify-end gap-2">
+                                  <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+                                  <Button onClick={submit}>Confirmar Agendamento</Button>
                                 </div>
-                                <div className="grid items-center gap-4">
-                                  <Label htmlFor="discipline">Disciplina</Label>
-                                  <Input id="discipline" value={form.discipline} onChange={handleDisciplineChange} placeholder="Ex: Marketing I" />
-                                </div>
-                              <div className="grid items-center gap-4">
-                                <Label htmlFor="totalUnits">Total de Unidades da Disciplina</Label>
-                                <Input id="totalUnits" type="number" value={form.totalUnits} onChange={(e) => setForm({ ...form, totalUnits: Number(e.target.value) })} placeholder="Ex: 8" disabled={!!disciplineInfo} />
-                                {disciplineInfo && (
-                                  <p className="text-sm text-muted-foreground">
-                                    Unidades restantes para gravar: {disciplineInfo.remaining} de {disciplineInfo.total}.
-                                  </p>
-                                )}
-                              </div>
-                              </div>
-                              <div className="flex justify-end gap-2">
-                                <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
-                                <Button onClick={submit}>Confirmar Agendamento</Button>
-                              </div>
-                            </DialogContent>
+                              </DialogContent>
                           </Dialog>
                         )}
                       </div>

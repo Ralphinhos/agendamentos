@@ -122,6 +122,7 @@ const EditDetailsDialog = ({ booking, onSave, updateBooking }: { booking: Bookin
     updateBooking(booking.id, {
       uploadCompleted: true,
       uploadNotificationRead: false,
+      recordingStatus: 'delivered', // Nova flag
     });
 
     toast({ title: "Upload Concluído", description: `Arquivo ${fileToUpload.name} enviado. O Admin foi notificado.` });
@@ -271,16 +272,51 @@ const Editor = () => {
             </DialogTrigger>
             <EditDetailsDialog booking={row.original} onSave={handleSaveDetails} updateBooking={updateBooking} />
           </Dialog>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="destructive" size="sm">Cancelar</Button>
-            </AlertDialogTrigger>
-            <CancelBookingDialog onConfirm={(reason) => handleCancelBooking(row.original.id, reason)} />
-          </AlertDialog>
+           {row.original.status !== 'concluída' && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="sm">Cancelar</Button>
+              </AlertDialogTrigger>
+              <CancelBookingDialog onConfirm={(reason) => handleCancelBooking(row.original.id, reason)} />
+            </AlertDialog>
+          )}
         </div>
       )
     }
   ];
+
+  const completedColumns: ColumnDef<BookingWithProgress>[] = [
+    { accessorKey: "date", header: "Data", cell: ({ row }) => format(new Date(row.original.date.replace(/-/g, '/')), "dd/MM/yyyy") },
+    { accessorKey: "course", header: "Curso" },
+    { accessorKey: "discipline", header: "Disciplina" },
+    {
+      accessorKey: "completionDate",
+      header: "Data de Conclusão",
+      cell: ({ row }) => row.original.completionDate
+        ? format(new Date(row.original.completionDate.replace(/-/g, '/')), "dd/MM/yyyy")
+        : "N/A"
+    },
+    {
+      id: "actions",
+      cell: ({ row }) => (
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button variant="outline" size="sm">Ver Detalhes</Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader><DialogTitle>Detalhes da Gravação Concluída</DialogTitle></DialogHeader>
+            <div className="space-y-2 py-4">
+              <p><strong>Curso:</strong> {row.original.course}</p>
+              <p><strong>Disciplina:</strong> {row.original.discipline}</p>
+              <p><strong>Observações Finais:</strong> {row.original.editorNotes || "Nenhuma"}</p>
+              <p><strong>Aulas Gravadas (Total):</strong> {row.original.lessonsRecorded}</p>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )
+    }
+  ];
+
 
   const ongoingData = useMemo(() => data.filter(b => b.disciplineProgress < 100), [data]);
   const completedData = useMemo(() => data.filter(b => b.disciplineProgress === 100), [data]);
@@ -302,10 +338,9 @@ const Editor = () => {
     getExpandedRowModel: getExpandedRowModel(),
   });
 
-  // Nota: A tabela de concluídos não precisa de 'expand' pois não tem observações editáveis
    const completedTable = useReactTable({
     data: completedData,
-    columns,
+    columns: completedColumns,
     state: {
       sorting,
       globalFilter,
@@ -351,7 +386,12 @@ const Editor = () => {
           <TableBody>
             {ongoingTable.getRowModel().rows.length > 0 ? (
               ongoingTable.getRowModel().rows.map(row => (
-                <TableRow key={row.id}>
+                <TableRow
+                  key={row.id}
+                  className={cn({
+                    "bg-green-100/50 hover:bg-green-100/60": row.original.recordingStatus === 'delivered',
+                  })}
+                >
                   {row.getVisibleCells().map(cell => (
                     <TableCell key={cell.id}>
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
