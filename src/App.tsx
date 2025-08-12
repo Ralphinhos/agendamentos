@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Admin from "./pages/Admin";
 import Editor from "./pages/Editor";
+import UploadPage from "./pages/Upload";
 import Confirmation from "./pages/Confirmation";
 import LoginPage from "./pages/Login";
 import NotificationsPage from "./pages/Notifications";
@@ -49,10 +50,14 @@ const AppContent = () => {
         <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
           <Route path="/" element={<Index />} />
           <Route path="/agendamentos" element={<Admin />} />
+        </Route>
+        <Route element={<ProtectedRoute allowedRoles={['admin', 'editor']} />}>
           <Route path="/notificacoes" element={<NotificationsPage />} />
         </Route>
+
         <Route element={<ProtectedRoute allowedRoles={['editor']} />}>
           <Route path="/editor" element={<Editor />} />
+          <Route path="/upload/:id" element={<UploadPage />} />
         </Route>
 
         {/* Catch-all */}
