@@ -28,7 +28,11 @@ export interface Booking {
   teacherNotes?: string; // Observações do professor
   teacherFiles?: EditedFile[]; // TPs enviados pelo professor
   cancellationReason?: string;
-  cancellationRead?: boolean;
+  cancellationRead?: boolean; // Para o admin
+  cancellationReadByEditor?: boolean; // Para o editor
+  // Notificação de upload
+  uploadCompleted?: boolean;
+  uploadNotificationRead?: boolean;
 }
 
 interface BookingsContextValue {

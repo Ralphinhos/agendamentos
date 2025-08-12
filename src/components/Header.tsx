@@ -20,8 +20,18 @@ const Header = () => {
   const { bookings, updateBooking } = useBookings();
   const isActive = (path: string) => location.pathname === path;
 
-  const unreadCancellations = useMemo(() => {
-    return bookings.filter(b => b.teacherConfirmation === "NEGADO" && !b.cancellationRead);
+  const adminNotifications = useMemo(() => {
+    return bookings.filter(b =>
+      (b.teacherConfirmation === "NEGADO" && !b.cancellationRead) ||
+      (b.uploadCompleted && !b.uploadNotificationRead)
+    );
+  }, [bookings]);
+
+  const editorUnreadCancellations = useMemo(() => {
+    // Notifica o editor sobre cancelamentos de professor ou admin que eles não leram
+    return bookings.filter(b =>
+      (b.teacherConfirmation === "NEGADO" || b.status === "cancelado") && !b.cancellationReadByEditor
+    );
   }, [bookings]);
 
   // Don't render header on login or confirmation pages
@@ -69,7 +79,7 @@ const Header = () => {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="relative">
                     <Bell className="h-4 w-4" />
-                    {unreadCancellations.length > 0 && (
+                    {adminNotifications.length > 0 && (
                       <span className="absolute top-1 right-1 flex h-2 w-2">
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                         <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
@@ -77,19 +87,39 @@ const Header = () => {
                     )}
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-64">
-                  <DropdownMenuLabel>Notificações</DropdownMenuLabel>
+                <DropdownMenuContent align="end" className="w-80">
+                  <DropdownMenuLabel>Notificações (Admin)</DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  {unreadCancellations.length > 0 ? (
-                    unreadCancellations.map(b => (
-                      <DropdownMenuItem key={b.id} onSelect={() => updateBooking(b.id, { cancellationRead: true })}>
-                        <div className="flex flex-col">
-                          <span className="font-semibold">{b.teacher} cancelou</span>
-                          <span className="text-xs text-muted-foreground">{b.discipline}</span>
-                          {b.cancellationReason && <span className="text-xs text-muted-foreground italic">"{b.cancellationReason}"</span>}
-                        </div>
-                      </DropdownMenuItem>
-                    ))
+                  {adminNotifications.length > 0 ? (
+                    adminNotifications.map(b => {
+                      const isUpload = b.uploadCompleted && !b.uploadNotificationRead;
+                      const isCancellation = b.teacherConfirmation === "NEGADO" && !b.cancellationRead;
+
+                      const handleSelect = () => {
+                        if (isUpload) {
+                          updateBooking(b.id, { uploadNotificationRead: true });
+                        }
+                        if (isCancellation) {
+                           updateBooking(b.id, { cancellationRead: true });
+                        }
+                      }
+
+                      return (
+                        <DropdownMenuItem key={b.id} onSelect={handleSelect}>
+                          <div className="flex flex-col">
+                            {isCancellation && <>
+                              <span className="font-semibold">{b.teacher} cancelou</span>
+                              <span className="text-xs text-muted-foreground">{b.discipline}</span>
+                              {b.cancellationReason && <span className="text-xs text-muted-foreground italic">"{b.cancellationReason}"</span>}
+                            </>}
+                             {isUpload && <>
+                              <span className="font-semibold">Upload Concluído</span>
+                              <span className="text-xs text-muted-foreground">Editor enviou arquivos para: {b.discipline}</span>
+                            </>}
+                          </div>
+                        </DropdownMenuItem>
+                      )
+                    })
                   ) : (
                     <DropdownMenuItem disabled>Nenhuma notificação nova</DropdownMenuItem>
                   )}
@@ -105,18 +135,52 @@ const Header = () => {
             </>
           )}
           {role === 'editor' && (
-            <Link
-              to="/editor"
-              className={cn(
-                "inline-flex items-center gap-2 px-3 py-2 rounded-md hover:bg-accent/60 transition-colors",
-                isActive("/editor") && "bg-accent"
-              )}
-              aria-label="Edição"
-              title="Edição"
-            >
-              <Clapperboard className="h-4 w-4" />
-              <span className="hidden sm:inline">Edição</span>
-            </Link>
+            <>
+              <Link
+                to="/editor"
+                className={cn(
+                  "inline-flex items-center gap-2 px-3 py-2 rounded-md hover:bg-accent/60 transition-colors",
+                  isActive("/editor") && "bg-accent"
+                )}
+                aria-label="Edição"
+                title="Edição"
+              >
+                <Clapperboard className="h-4 w-4" />
+                <span className="hidden sm:inline">Edição</span>
+              </Link>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="relative">
+                    <Bell className="h-4 w-4" />
+                    {editorUnreadCancellations.length > 0 && (
+                      <span className="absolute top-1 right-1 flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+                      </span>
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-64">
+                  <DropdownMenuLabel>Notificações (Editor)</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {editorUnreadCancellations.length > 0 ? (
+                    editorUnreadCancellations.map(b => (
+                      <DropdownMenuItem key={b.id} onSelect={() => updateBooking(b.id, { cancellationReadByEditor: true })}>
+                        <div className="flex flex-col">
+                          <span className="font-semibold">Cancelamento: {b.discipline}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {b.teacherConfirmation === 'NEGADO' ? `Docente ${b.teacher} negou.` : `Cancelado pelo editor.`}
+                          </span>
+                          {b.cancellationReason && <span className="text-xs text-muted-foreground italic">"{b.cancellationReason}"</span>}
+                        </div>
+                      </DropdownMenuItem>
+                    ))
+                  ) : (
+                    <DropdownMenuItem disabled>Nenhuma notificação nova</DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
           )}
           <Button variant="ghost" size="icon" onClick={logout} title="Sair">
             <LogOut className="h-4 w-4" />

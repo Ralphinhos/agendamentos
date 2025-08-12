@@ -21,6 +21,17 @@ import {
   DialogFooter,
   DialogClose
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -35,7 +46,17 @@ import {
   SortingState,
   getSortedRowModel,
   getFilteredRowModel,
-} from "@tanstack/react-table"
+  getExpandedRowModel,
+  ExpandedState,
+} from "@tanstack/react-table";
+import { Progress } from "@/components/ui/progress";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible"
+import { ChevronDown } from "lucide-react";
+import { BookingWithProgress } from "./Admin"; // Reutilizando o tipo
 
 const statusColors: Record<EditingStatus, string> = {
   pendente: "bg-red-500",
@@ -50,7 +71,44 @@ const nextStatus: Record<EditingStatus, EditingStatus> = {
 };
 
 // Componente do Dialog para evitar re-render da tabela principal
-const EditDetailsDialog = ({ booking, onSave }: { booking: Booking, onSave: (data: Partial<Booking>) => void }) => {
+const CancelBookingDialog = ({ onConfirm }: { onConfirm: (reason: string) => void }) => {
+  const [reason, setReason] = useState("");
+  const handleConfirm = () => {
+    if (!reason.trim()) {
+      toast({
+        title: "Motivo obrigatório",
+        description: "Por favor, informe o motivo do cancelamento.",
+        variant: "destructive",
+      });
+      return;
+    }
+    onConfirm(reason);
+  }
+
+  return (
+    <AlertDialogContent>
+      <AlertDialogHeader>
+        <AlertDialogTitle>Cancelar Agendamento</AlertDialogTitle>
+        <AlertDialogDescription>
+          Por favor, informe o motivo do cancelamento. Esta ação não pode ser desfeita.
+        </AlertDialogDescription>
+      </AlertDialogHeader>
+      <div className="py-4">
+        <Textarea
+          placeholder="Descreva o motivo do cancelamento aqui..."
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+        />
+      </div>
+      <AlertDialogFooter>
+        <AlertDialogCancel>Voltar</AlertDialogCancel>
+        <AlertDialogAction onClick={handleConfirm} disabled={!reason.trim()}>Confirmar Cancelamento</AlertDialogAction>
+      </AlertDialogFooter>
+    </AlertDialogContent>
+  )
+}
+
+const EditDetailsDialog = ({ booking, onSave, updateBooking }: { booking: Booking, onSave: (data: Partial<Booking>) => void, updateBooking: (id: string, patch: Partial<Booking>) => void }) => {
   const [formData, setFormData] = useState({
     lessonsRecorded: booking.lessonsRecorded ?? 0,
     editorNotes: booking.editorNotes ?? "",
@@ -59,11 +117,14 @@ const EditDetailsDialog = ({ booking, onSave }: { booking: Booking, onSave: (dat
 
   const handleDriveUpload = () => {
     if (!fileToUpload) return;
-    console.log("--- SIMULAÇÃO DE UPLOAD GOOGLE DRIVE ---");
-    console.log(`Arquivo: ${fileToUpload.name}`);
-    console.log(`Pasta de destino: 2025.2/${booking.discipline}`);
-    console.log("-----------------------------------------");
-    toast({ title: "Simulação de Upload", description: `Arquivo ${fileToUpload.name} enviado para a pasta ${booking.discipline} no Drive.` });
+
+    // Simula o upload e depois atualiza o booking para notificar o admin
+    updateBooking(booking.id, {
+      uploadCompleted: true,
+      uploadNotificationRead: false,
+    });
+
+    toast({ title: "Upload Concluído", description: `Arquivo ${fileToUpload.name} enviado. O Admin foi notificado.` });
     setFileToUpload(null);
   };
 
@@ -116,6 +177,28 @@ const Editor = () => {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
   const [editingBookingId, setEditingBookingId] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<ExpandedState>({});
+
+  const data = useMemo<BookingWithProgress[]>(() => {
+    const progressMap: Record<string, { totalUnits: number; actualRecorded: number }> = {};
+
+    const activeBookings = bookings.filter(b => b.teacherConfirmation !== 'NEGADO' && b.status !== 'cancelado');
+
+    activeBookings.forEach(b => {
+      if (!b.discipline || !b.totalUnits) return;
+      if (!progressMap[b.discipline]) {
+        progressMap[b.discipline] = { totalUnits: b.totalUnits, actualRecorded: 0 };
+      }
+      const unitsToAdd = b.lessonsRecorded ?? b.recordedUnits ?? 0;
+      progressMap[b.discipline].actualRecorded += unitsToAdd;
+    });
+
+    return activeBookings.map(b => {
+      const progress = progressMap[b.discipline];
+      const percentage = progress ? (progress.actualRecorded / progress.totalUnits) * 100 : 0;
+      return { ...b, disciplineProgress: Math.min(percentage, 100) };
+    });
+  }, [bookings]);
 
   const handleStatusChange = (id: string, currentStatus: EditingStatus) => {
     updateBooking(id, { status: nextStatus[currentStatus] });
@@ -127,14 +210,30 @@ const Editor = () => {
     setEditingBookingId(null); // Fecha o dialog
   };
 
-  const columns: ColumnDef<Booking>[] = [
+  const handleCancelBooking = (bookingId: string, reason: string) => {
+    updateBooking(bookingId, {
+      status: 'cancelado',
+      cancellationReason: reason,
+    });
+    toast({
+      title: "Agendamento Cancelado",
+      description: "O agendamento foi cancelado com sucesso.",
+    })
+  };
+
+  const columns: ColumnDef<BookingWithProgress>[] = [
     { accessorKey: "date", header: "Data", cell: ({ row }) => format(new Date(row.original.date.replace(/-/g, '/')), "dd/MM/yyyy") },
-    { accessorKey: "teacher", header: "Docente" },
+    {
+      id: "time",
+      header: "Horário",
+      cell: ({ row }) => `${row.original.start} - ${row.original.end}`,
+    },
+    { accessorKey: "course", header: "Curso" },
     { accessorKey: "discipline", header: "Disciplina" },
     { accessorKey: "recordedUnits", header: "Aulas Agendadas" },
     {
       accessorKey: "status",
-      header: "Status",
+      header: "Status Edição",
       cell: ({ row }) => (
         <Badge
           className={cn("cursor-pointer text-white hover:brightness-125 transition-all", statusColors[row.original.status])}
@@ -145,35 +244,77 @@ const Editor = () => {
       )
     },
     {
+      accessorKey: "disciplineProgress",
+      header: "Progresso Disciplina",
+      cell: ({ row }) => {
+        const percentage = row.original.disciplineProgress;
+        return (
+          <div className="flex items-center gap-2">
+            <Progress value={percentage} className="w-[80%]" />
+            <span className="text-xs text-muted-foreground">{percentage.toFixed(0)}%</span>
+          </div>
+        )
+      },
+    },
+    {
       id: "actions",
       cell: ({ row }) => (
-        <Dialog
-          open={editingBookingId === row.original.id}
-          onOpenChange={(isOpen) => !isOpen && setEditingBookingId(null)}
-        >
-          <DialogTrigger asChild>
-            <Button variant="outline" size="sm" onClick={() => setEditingBookingId(row.original.id)}>
-              Ver Detalhes
-            </Button>
-          </DialogTrigger>
-          <EditDetailsDialog booking={row.original} onSave={handleSaveDetails} />
-        </Dialog>
+        <div className="flex items-center gap-2">
+          <Dialog
+            open={editingBookingId === row.original.id}
+            onOpenChange={(isOpen) => !isOpen && setEditingBookingId(null)}
+          >
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm" onClick={() => setEditingBookingId(row.original.id)}>
+                Detalhes
+              </Button>
+            </DialogTrigger>
+            <EditDetailsDialog booking={row.original} onSave={handleSaveDetails} updateBooking={updateBooking} />
+          </Dialog>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive" size="sm">Cancelar</Button>
+            </AlertDialogTrigger>
+            <CancelBookingDialog onConfirm={(reason) => handleCancelBooking(row.original.id, reason)} />
+          </AlertDialog>
+        </div>
       )
     }
   ];
 
-  const table = useReactTable({
-    data: bookings,
+  const ongoingData = useMemo(() => data.filter(b => b.disciplineProgress < 100), [data]);
+  const completedData = useMemo(() => data.filter(b => b.disciplineProgress === 100), [data]);
+
+  const ongoingTable = useReactTable({
+    data: ongoingData,
     columns,
-    getCoreRowModel: getCoreRowModel(),
+    state: {
+      sorting,
+      globalFilter,
+      expanded,
+    },
     onSortingChange: setSorting,
-    getSortedRowModel: getSortedRowModel(),
     onGlobalFilterChange: setGlobalFilter,
+    onExpandedChange: setExpanded,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
+    getExpandedRowModel: getExpandedRowModel(),
+  });
+
+  // Nota: A tabela de concluídos não precisa de 'expand' pois não tem observações editáveis
+   const completedTable = useReactTable({
+    data: completedData,
+    columns,
     state: {
       sorting,
       globalFilter,
     },
+    onSortingChange: setSorting,
+    onGlobalFilterChange: setGlobalFilter,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
   });
 
   return (
@@ -196,7 +337,7 @@ const Editor = () => {
       <div className="rounded-lg border bg-card">
         <Table>
           <TableHeader>
-            {table.getHeaderGroups().map(headerGroup => (
+            {ongoingTable.getHeaderGroups().map(headerGroup => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map(header => (
                   <TableHead key={header.id} onClick={header.column.getToggleSortingHandler()}>
@@ -208,8 +349,8 @@ const Editor = () => {
             ))}
           </TableHeader>
           <TableBody>
-            {table.getRowModel().rows.length > 0 ? (
-              table.getRowModel().rows.map(row => (
+            {ongoingTable.getRowModel().rows.length > 0 ? (
+              ongoingTable.getRowModel().rows.map(row => (
                 <TableRow key={row.id}>
                   {row.getVisibleCells().map(cell => (
                     <TableCell key={cell.id}>
@@ -221,13 +362,58 @@ const Editor = () => {
             ) : (
               <TableRow>
                 <TableCell colSpan={columns.length} className="h-24 text-center">
-                  Nenhum resultado encontrado.
+                  Nenhum agendamento em andamento.
                 </TableCell>
               </TableRow>
             )}
           </TableBody>
         </Table>
       </div>
+
+       <Collapsible className="mt-6">
+        <CollapsibleTrigger asChild>
+          <div className="flex items-center gap-2 cursor-pointer">
+            <h2 className="text-xl font-semibold">Disciplinas Concluídas</h2>
+            <ChevronDown className="h-5 w-5 transition-transform [&[data-state=open]]:rotate-180" />
+          </div>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="mt-4">
+          <div className="rounded-lg border bg-card">
+            <Table>
+              <TableHeader>
+                {completedTable.getHeaderGroups().map(headerGroup => (
+                  <TableRow key={headerGroup.id}>
+                    {headerGroup.headers.map(header => (
+                      <TableHead key={header.id}>
+                        {flexRender(header.column.columnDef.header, header.getContext())}
+                      </TableHead>
+                    ))}
+                  </TableRow>
+                ))}
+              </TableHeader>
+              <TableBody>
+                {completedTable.getRowModel().rows.length > 0 ? (
+                  completedTable.getRowModel().rows.map(row => (
+                    <TableRow key={row.id}>
+                      {row.getVisibleCells().map(cell => (
+                        <TableCell key={cell.id}>
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={columns.length} className="h-24 text-center">
+                      Nenhuma disciplina concluída.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
     </main>
   );
 };
