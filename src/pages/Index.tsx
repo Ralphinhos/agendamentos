@@ -89,7 +89,7 @@ function Index() {
     start: string,
     end: string
   ) => {
-    setForm((f) => ({ ...f, dateISO, period, start, end, teacher: '', course: '', discipline: '', totalUnits: 8 }));
+    setForm((f) => ({ ...f, dateISO, period, start, end, teacher: '', course: '', discipline: '', totalUnits: 8, recordedUnits: 4 }));
     setDisciplineInfo(null);
     setOpen(true);
   };
@@ -319,10 +319,10 @@ function Index() {
                                   <div className="grid items-center gap-4">
                                     <Label htmlFor="totalUnits">Total de Unidades da Disciplina</Label>
                                     <Input id="totalUnits" type="number" value={form.totalUnits} onChange={(e) => setForm({ ...form, totalUnits: Number(e.target.value) })} placeholder="Ex: 8" disabled={!!disciplineInfo} />
-                              </div>
-                               <div className="grid items-center gap-4">
-                                <Label htmlFor="recordedUnits">Aulas a Serem Gravadas</Label>
-                                <Input id="recordedUnits" type="number" value={form.recordedUnits} onChange={(e) => setForm({ ...form, recordedUnits: Number(e.target.value) })} placeholder="Ex: 4" />
+                                  </div>
+                                   <div className="grid items-center gap-4">
+                                    <Label htmlFor="recordedUnits">Aulas a Serem Gravadas</Label>
+                                    <Input id="recordedUnits" type="number" value={form.recordedUnits} onChange={(e) => setForm({ ...form, recordedUnits: Number(e.target.value) })} placeholder="Ex: 4" />
                                     {disciplineInfo && (
                                       <p className="text-sm text-muted-foreground">
                                         Unidades restantes para gravar: {disciplineInfo.remaining} de {disciplineInfo.total}.
