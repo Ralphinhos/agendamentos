@@ -80,6 +80,7 @@ function Index() {
     course: "",
     discipline: "",
     totalUnits: 8, // Default value
+    recordedUnits: 4, // Default value
   });
 
   const openDialog = (
@@ -118,6 +119,11 @@ function Index() {
       return;
     }
 
+    if (disciplineInfo && form.recordedUnits > disciplineInfo.remaining) {
+       toast({ variant: "destructive", title: "Limite de Aulas Excedido", description: `Você está tentando agendar ${form.recordedUnits} aulas, mas apenas ${disciplineInfo.remaining} estão disponíveis para esta disciplina.` });
+      return;
+    }
+
     if (disciplineInfo && disciplineInfo.remaining <= 0) {
       toast({ variant: "destructive", title: "Disciplina Concluída", description: "Todas as unidades desta disciplina já foram gravadas." });
       return;
@@ -140,7 +146,7 @@ function Index() {
       teacher: form.teacher,
       status: "pendente",
       totalUnits: form.totalUnits,
-      recordedUnits: form.totalUnits / 2, // Grava metade das unidades por agendamento
+      recordedUnits: form.recordedUnits,
     });
     setOpen(false);
     toast({ title: "Reserva realizada!", description: `Agendado para ${format(new Date(form.dateISO.replace(/-/g, '/')), "dd/MM/yyyy")} no período da ${form.period.toLowerCase()}.` });
@@ -313,6 +319,10 @@ function Index() {
                                   <div className="grid items-center gap-4">
                                     <Label htmlFor="totalUnits">Total de Unidades da Disciplina</Label>
                                     <Input id="totalUnits" type="number" value={form.totalUnits} onChange={(e) => setForm({ ...form, totalUnits: Number(e.target.value) })} placeholder="Ex: 8" disabled={!!disciplineInfo} />
+                              </div>
+                               <div className="grid items-center gap-4">
+                                <Label htmlFor="recordedUnits">Aulas a Serem Gravadas</Label>
+                                <Input id="recordedUnits" type="number" value={form.recordedUnits} onChange={(e) => setForm({ ...form, recordedUnits: Number(e.target.value) })} placeholder="Ex: 4" />
                                     {disciplineInfo && (
                                       <p className="text-sm text-muted-foreground">
                                         Unidades restantes para gravar: {disciplineInfo.remaining} de {disciplineInfo.total}.
