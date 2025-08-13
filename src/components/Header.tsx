@@ -3,6 +3,7 @@ import { CalendarCheck, ListChecks, Clapperboard, LogOut, Bell } from "lucide-re
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "./ui/button";
+import { ThemeToggle } from "./ThemeToggle";
 import { useBookings } from "@/context/BookingsContext";
 import {
   DropdownMenu,
@@ -217,6 +218,7 @@ const Header = () => {
               </DropdownMenu>
             </>
           )}
+          <ThemeToggle />
           <Button variant="ghost" size="icon" onClick={logout} title="Sair">
             <LogOut className="h-4 w-4" />
           </Button>

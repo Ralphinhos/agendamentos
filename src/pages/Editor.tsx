@@ -355,7 +355,13 @@ const Editor = () => {
   ];
 
   const completedColumns: ColumnDef<BookingWithProgress>[] = [
-    { accessorKey: "date", header: "Data", cell: ({ row }) => format(new Date(row.original.date.replace(/-/g, '/')), "dd/MM/yyyy") },
+    {
+      accessorKey: "completionDate",
+      header: "Data de Conclusão",
+      cell: ({ row }) => row.original.completionDate
+        ? format(new Date(row.original.completionDate.replace(/-/g, '/')), "dd/MM/yyyy")
+        : "N/A"
+    },
     { accessorKey: "course", header: "Curso" },
     { accessorKey: "discipline", header: "Disciplina" },
     {
@@ -372,13 +378,6 @@ const Editor = () => {
           </div>
         )
       },
-    },
-    {
-      accessorKey: "completionDate",
-      header: "Data de Conclusão",
-      cell: ({ row }) => row.original.completionDate
-        ? format(new Date(row.original.completionDate.replace(/-/g, '/')), "dd/MM/yyyy")
-        : "N/A"
     },
     {
       id: "actions",
