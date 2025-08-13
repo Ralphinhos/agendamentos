@@ -290,24 +290,24 @@ const Editor = () => {
       id: "actions",
       cell: ({ row }) => (
         <div className="flex items-center gap-1">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Dialog
-                open={editingBookingId === row.original.id}
-                onOpenChange={(isOpen) => !isOpen && setEditingBookingId(null)}
-              >
+          <Dialog
+            open={editingBookingId === row.original.id}
+            onOpenChange={(isOpen) => !isOpen && setEditingBookingId(null)}
+          >
+            <Tooltip>
+              <TooltipTrigger asChild>
                 <DialogTrigger asChild>
                   <Button variant="ghost" size="icon" onClick={() => setEditingBookingId(row.original.id)}>
                     <FileText className="h-4 w-4" />
                   </Button>
                 </DialogTrigger>
-                <EditDetailsDialog booking={row.original} onSave={handleSaveDetails} />
-              </Dialog>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Ver/Editar Detalhes</p>
-            </TooltipContent>
-          </Tooltip>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Ver/Editar Detalhes</p>
+              </TooltipContent>
+            </Tooltip>
+            <EditDetailsDialog booking={row.original} onSave={handleSaveDetails} />
+          </Dialog>
 
           <Tooltip>
             <TooltipTrigger asChild>
@@ -323,21 +323,21 @@ const Editor = () => {
           </Tooltip>
 
            {row.original.status !== 'concluída' && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <AlertDialog>
+            <AlertDialog>
+              <Tooltip>
+                <TooltipTrigger asChild>
                   <AlertDialogTrigger asChild>
                     <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-600">
                       <XCircle className="h-4 w-4" />
                     </Button>
                   </AlertDialogTrigger>
-                  <CancelBookingDialog onConfirm={(reason) => handleCancelBooking(row.original.id, reason)} />
-                </AlertDialog>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Cancelar Agendamento</p>
-              </TooltipContent>
-            </Tooltip>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Cancelar Agendamento</p>
+                </TooltipContent>
+              </Tooltip>
+              <CancelBookingDialog onConfirm={(reason) => handleCancelBooking(row.original.id, reason)} />
+            </AlertDialog>
           )}
         </div>
       )
