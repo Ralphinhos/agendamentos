@@ -50,12 +50,15 @@ const AppContent = () => {
         <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
           <Route path="/" element={<Index />} />
           <Route path="/agendamentos" element={<Admin />} />
-          <Route path="/notificacoes" element={<NotificationsPage />} />
         </Route>
 
         <Route element={<ProtectedRoute allowedRoles={['editor']} />}>
           <Route path="/editor" element={<Editor />} />
           <Route path="/upload/:id" element={<UploadPage />} />
+        </Route>
+
+        {/* Routes accessible by multiple roles */}
+        <Route element={<ProtectedRoute allowedRoles={['admin', 'editor']} />}>
           <Route path="/notificacoes" element={<NotificationsPage />} />
         </Route>
 

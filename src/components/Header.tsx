@@ -180,13 +180,22 @@ const Header = () => {
                       return (
                         <DropdownMenuItem key={b.id} onSelect={handleSelect}>
                           <div className="flex flex-col">
-                            {isCancellation && <>
-                              <span className="font-semibold">Cancelamento: {b.discipline}</span>
-                              <span className="text-xs text-muted-foreground">
-                                {b.teacherConfirmation === 'NEGADO' ? `Docente ${b.teacher} negou.` : `Cancelado pelo admin.`}
-                              </span>
-                               {b.cancellationReason && <span className="text-xs text-muted-foreground italic">"{b.cancellationReason}"</span>}
-                            </>}
+                            {isCancellation && (
+                              b.editorCancelled ? (
+                                <>
+                                  <span className="font-semibold">Você cancelou: {b.discipline}</span>
+                                  {b.cancellationReason && <span className="text-xs text-muted-foreground italic">"{b.cancellationReason}"</span>}
+                                </>
+                              ) : (
+                                <>
+                                  <span className="font-semibold">Cancelamento: {b.discipline}</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {b.teacherConfirmation === 'NEGADO' ? `Docente ${b.teacher} negou.` : `Cancelado pelo admin.`}
+                                  </span>
+                                  {b.cancellationReason && <span className="text-xs text-muted-foreground italic">"{b.cancellationReason}"</span>}
+                                </>
+                              )
+                            )}
                             {isUpload && <>
                               <span className="font-semibold">Upload Concluído</span>
                               <span className="text-xs text-muted-foreground">Você enviou arquivos para: {b.discipline}</span>
