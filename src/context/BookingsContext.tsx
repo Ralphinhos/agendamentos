@@ -1,4 +1,6 @@
-import React, { createContext, useContext, useEffect, useMemo, useState, useCallback } from "react";
+import React, { createContext, useContext, useMemo, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { fetchBookings } from "@/lib/api";
 
 export type EditingStatus = "pendente" | "em-andamento" | "concluída";
 
@@ -23,123 +25,36 @@ export interface Booking {
   recordedUnits?: number;
   status: EditingStatus;
   editedFiles?: EditedFile[];
-  // Campos a serem movidos para o fluxo de confirmação do professor
   teacherConfirmation?: "CONFIRMADO" | "NEGADO";
-  teacherNotes?: string; // Observações do professor
-  teacherFiles?: EditedFile[]; // TPs enviados pelo professor
+  teacherNotes?: string;
+  teacherFiles?: EditedFile[];
   cancellationReason?: string;
-  cancellationRead?: boolean; // Para o admin
-  cancellationReadByEditor?: boolean; // Para o editor
-  // Notificação de upload
+  cancellationRead?: boolean;
+  cancellationReadByEditor?: boolean;
   uploadCompleted?: boolean;
   uploadNotificationRead?: boolean;
-  // Nova flag para indicar que a gravação do dia foi entregue
   dailyDeliveryStatus?: 'delivered';
-  completionDate?: string; // YYYY-MM-DD
-  allRecordingsDone?: boolean; // Nova flag para indicar que a gravação da disciplina inteira terminou
-  // Notificação de cancelamento pelo editor
+  completionDate?: string;
+  allRecordingsDone?: boolean;
   editorCancelled?: boolean;
-  editorCancellationRead?: boolean; // Para o admin
+  editorCancellationRead?: boolean;
 }
 
 interface BookingsContextValue {
   bookings: Booking[];
-  addBooking: (booking: Booking) => void;
-  updateBooking: (id: string, patch: Partial<Booking>) => void;
-  removeBooking: (id: string) => void;
-  revertCompletion: (disciplineName: string) => void;
-  markAllRecordingsDone: (disciplineName: string) => void;
-  reopenRecordings: (disciplineName: string) => void;
-  completeDiscipline: (disciplineName: string) => void;
+  isLoading: boolean;
+  error: Error | null;
   getBySlot: (date: string, period: Booking["period"]) => Booking | undefined;
   getDisciplineProgress: (disciplineName: string) => { totalUnits: number; actualRecorded: number } | null;
 }
 
 const BookingsContext = createContext<BookingsContextValue | undefined>(undefined);
 
-const STORAGE_KEY = "ead-bookings-v1";
-
 export const BookingsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [bookings, setBookings] = useState<Booking[]>(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      return raw ? (JSON.parse(raw) as Booking[]) : [];
-    } catch {
-      return [];
-    }
+  const { data: bookings = [], isLoading, error } = useQuery<Booking[], Error>({
+    queryKey: ['bookings'],
+    queryFn: fetchBookings,
   });
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(bookings));
-  }, [bookings]);
-
-  // Efeito para sincronizar entre abas
-  useEffect(() => {
-    const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === STORAGE_KEY && event.newValue) {
-        try {
-          setBookings(JSON.parse(event.newValue));
-        } catch (e) {
-          console.error("Failed to parse bookings from storage event", e);
-        }
-      }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-    };
-  }, []);
-
-  const addBooking = useCallback((booking: Booking) => setBookings((prev) => [booking, ...prev]), []);
-
-  const updateBooking = useCallback((id: string, patch: Partial<Booking>) => {
-    setBookings((prev) =>
-      prev.map((b) => (b.id === id ? { ...b, ...patch } : b))
-    );
-  }, []);
-
-  const removeBooking = useCallback((id: string) => setBookings((prev) => prev.filter((b) => b.id !== id)), []);
-
-  const revertCompletion = useCallback((disciplineName: string) => {
-    setBookings((prev) =>
-      prev.map((b) => {
-        if (b.discipline === disciplineName) {
-          const { completionDate, ...rest } = b;
-          return { ...rest, status: "em-andamento" as EditingStatus };
-        }
-        return b;
-      })
-    );
-  }, []);
-
-  const markAllRecordingsDone = useCallback((disciplineName: string) => {
-    setBookings((prev) =>
-      prev.map((b) =>
-        b.discipline === disciplineName ? { ...b, allRecordingsDone: true } : b
-      )
-    );
-  }, []);
-
-  const completeDiscipline = useCallback((disciplineName: string) => {
-    const completionDate = new Date().toISOString().split('T')[0];
-    setBookings((prev) =>
-      prev.map((b) =>
-        b.discipline === disciplineName
-          ? { ...b, completionDate, status: 'concluída' }
-          : b
-      )
-    );
-  }, []);
-
-  const reopenRecordings = useCallback((disciplineName: string) => {
-    setBookings((prev) =>
-      prev.map((b) =>
-        b.discipline === disciplineName ? { ...b, allRecordingsDone: false } : b
-      )
-    );
-  }, []);
 
   const getBySlot = useCallback((date: string, period: Booking["period"]) =>
     bookings.find((b) => b.date === date && b.period === period && b.teacherConfirmation !== 'NEGADO'),
@@ -159,8 +74,14 @@ export const BookingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [bookings]);
 
   const value = useMemo(
-    () => ({ bookings, addBooking, updateBooking, removeBooking, getBySlot, getDisciplineProgress, revertCompletion, markAllRecordingsDone, reopenRecordings, completeDiscipline }),
-    [bookings, addBooking, updateBooking, removeBooking, getBySlot, getDisciplineProgress, revertCompletion, markAllRecordingsDone, reopenRecordings, completeDiscipline]
+    () => ({
+      bookings,
+      isLoading,
+      error,
+      getBySlot,
+      getDisciplineProgress,
+    }),
+    [bookings, isLoading, error, getBySlot, getDisciplineProgress]
   );
 
   return <BookingsContext.Provider value={value}>{children}</BookingsContext.Provider>;

@@ -17,11 +17,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useBookings } from "@/context/BookingsContext";
-import { toast } from "@/hooks/use-toast";
+import { useAddBooking } from "@/hooks/api/useAddBooking";
+import { useRemoveBooking } from "@/hooks/api/useRemoveBooking";
+import { toast } from "sonner";
 import { format, isSameDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useMemo } from "react";
-import { Trash2, Link2, Send } from "lucide-react";
+import { Trash2, Link2, Send, Loader2 } from "lucide-react";
 
 interface Holiday {
   date: string;
@@ -39,12 +41,16 @@ function formatDateISO(d: Date) {
 }
 
 function Index() {
-  const { addBooking, getBySlot, bookings, getDisciplineProgress, removeBooking } = useBookings();
+  const { getBySlot, bookings, getDisciplineProgress, isLoading: isLoadingBookings } = useBookings();
+  const addBookingMutation = useAddBooking();
+  const removeBookingMutation = useRemoveBooking();
+
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [disciplineInfo, setDisciplineInfo] = useState<{ remaining: number, total: number } | null>(null);
 
   const bookedDays = useMemo(() => {
+    if (!bookings) return [];
     const dates = bookings
       .filter(b => b.teacherConfirmation !== 'NEGADO' && b.status !== 'cancelado' && !b.completionDate)
       .map(b => {
@@ -52,7 +58,7 @@ function Index() {
         return new Date(year, month - 1, day);
       });
     return dates;
-  }, [bookings, bookings.length]);
+  }, [bookings, bookings?.length]);
 
   const holidayDates = useMemo(() => {
     return holidays.map(h => {
@@ -79,8 +85,8 @@ function Index() {
     teacher: "",
     course: "",
     discipline: "",
-    totalUnits: 8, // Default value
-    recordedUnits: 4, // Default value
+    totalUnits: 8,
+    recordedUnits: 4,
   });
 
   const openDialog = (
@@ -115,26 +121,26 @@ function Index() {
 
   const submit = () => {
     if (!form.teacher || !form.course || !form.discipline) {
-      toast({ title: "Preencha os campos obrigatórios.", description: "Docente, Curso e Disciplina." });
+      toast.error("Preencha os campos obrigatórios: Docente, Curso e Disciplina.");
       return;
     }
 
     if (disciplineInfo && form.recordedUnits > disciplineInfo.remaining) {
-       toast({ variant: "destructive", title: "Limite de Aulas Excedido", description: `Você está tentando agendar ${form.recordedUnits} aulas, mas apenas ${disciplineInfo.remaining} estão disponíveis para esta disciplina.` });
+       toast.error("Limite de Aulas Excedido", { description: `Você está tentando agendar ${form.recordedUnits} aulas, mas apenas ${disciplineInfo.remaining} estão disponíveis.` });
       return;
     }
 
     if (disciplineInfo && disciplineInfo.remaining <= 0) {
-      toast({ variant: "destructive", title: "Disciplina Concluída", description: "Todas as unidades desta disciplina já foram gravadas." });
+      toast.error("Disciplina Concluída", { description: "Todas as unidades desta disciplina já foram gravadas." });
       return;
     }
 
     const existing = getBySlot(form.dateISO, form.period);
     if (existing) {
-      toast({ title: "Horário já reservado", description: "Escolha outro horário disponível." });
+      toast.error("Horário já reservado", { description: "Escolha outro horário disponível." });
       return;
     }
-    addBooking({
+    addBookingMutation.mutate({
       id: crypto.randomUUID(),
       date: form.dateISO,
       weekday: date ? format(date, "EEEE", { locale: ptBR }) : "",
@@ -147,9 +153,15 @@ function Index() {
       status: "pendente",
       totalUnits: form.totalUnits,
       recordedUnits: form.recordedUnits,
+    }, {
+      onSuccess: () => {
+        setOpen(false);
+        toast.success("Reserva realizada!", { description: `Agendado para ${format(new Date(form.dateISO.replace(/-/g, '/')), "dd/MM/yyyy")} no período da ${form.period.toLowerCase()}.` });
+      },
+      onError: () => {
+        toast.error("Falha ao agendar", { description: "Ocorreu um erro. Tente novamente." });
+      }
     });
-    setOpen(false);
-    toast({ title: "Reserva realizada!", description: `Agendado para ${format(new Date(form.dateISO.replace(/-/g, '/')), "dd/MM/yyyy")} no período da ${form.period.toLowerCase()}.` });
   };
 
   const sendWhatsApp = (link: string, teacher: string) => {
@@ -157,7 +169,7 @@ function Index() {
     console.log("--- SIMULAÇÃO DE ENVIO WHATSAPP ---");
     console.log(`Mensagem: ${message}`);
     console.log("------------------------------------");
-    toast({ title: "Simulação de WhatsApp", description: "A mensagem foi registrada no console." });
+    toast.info("Simulação de WhatsApp", { description: "A mensagem foi registrada no console." });
   };
 
   const selectedDayIsHoliday = date && holidayDates.some(holidayDate => isSameDay(holidayDate, date));
@@ -225,7 +237,11 @@ function Index() {
             <h2 className="text-lg font-semibold">
               {date ? `Horários para ${format(date, "PPP", { locale: ptBR })}` : "Selecione uma data"}
             </h2>
-            {date && (
+            {isLoadingBookings ? (
+              <div className="flex items-center justify-center h-24">
+                <Loader2 className="h-6 w-6 animate-spin" />
+              </div>
+            ) : date && (
               selectedDayIsHoliday ? (
                 <div>
                   <p className="font-semibold text-red-500">Este dia é um feriado.</p>
@@ -240,7 +256,7 @@ function Index() {
 
                     const copyLink = () => {
                       navigator.clipboard.writeText(confirmationLink);
-                      toast({ title: "Link copiado!", description: "O link de confirmação foi copiado para a área de transferência." });
+                      toast.success("Link copiado!");
                     };
 
                     return (
@@ -280,7 +296,7 @@ function Index() {
                                   </AlertDialogHeader>
                                   <AlertDialogFooter>
                                     <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => removeBooking(booked.id)} className="bg-destructive hover:bg-destructive/90">
+                                    <AlertDialogAction onClick={() => removeBookingMutation.mutate(booked.id)} className="bg-destructive hover:bg-destructive/90">
                                       Sim, remover
                                     </AlertDialogAction>
                                   </AlertDialogFooter>
@@ -332,7 +348,10 @@ function Index() {
                                 </div>
                                 <div className="flex justify-end gap-2">
                                   <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
-                                  <Button onClick={submit}>Confirmar Agendamento</Button>
+                                  <Button onClick={submit} disabled={addBookingMutation.isPending}>
+                                    {addBookingMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                    Confirmar Agendamento
+                                    </Button>
                                 </div>
                               </DialogContent>
                           </Dialog>
@@ -345,9 +364,8 @@ function Index() {
             )}
           </div>
         </div>
-      </div>
-    </section>
-  </main>
+      </section>
+    </main>
   );
 }
 
