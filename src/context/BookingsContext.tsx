@@ -34,8 +34,12 @@ export interface Booking {
   uploadCompleted?: boolean;
   uploadNotificationRead?: boolean;
   // Nova flag para indicar que a gravação do dia foi entregue
-  recordingStatus?: 'delivered';
+  dailyDeliveryStatus?: 'delivered';
   completionDate?: string; // YYYY-MM-DD
+  allRecordingsDone?: boolean; // Nova flag para indicar que a gravação da disciplina inteira terminou
+  // Notificação de cancelamento pelo editor
+  editorCancelled?: boolean;
+  editorCancellationRead?: boolean; // Para o admin
 }
 
 interface BookingsContextValue {
@@ -44,6 +48,7 @@ interface BookingsContextValue {
   updateBooking: (id: string, patch: Partial<Booking>) => void;
   removeBooking: (id: string) => void;
   revertCompletion: (disciplineName: string) => void;
+  markAllRecordingsDone: (disciplineName: string) => void;
   getBySlot: (date: string, period: Booking["period"]) => Booking | undefined;
   getDisciplineProgress: (disciplineName: string) => { totalUnits: number; actualRecorded: number } | null;
 }
@@ -89,28 +94,22 @@ export const BookingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const updateBooking = useCallback((id: string, patch: Partial<Booking>) => {
     setBookings((prev) => {
-      const updatedBookings = prev.map((b) => (b.id === id ? { ...b, ...patch } : b));
+      let bookingsToUpdate = prev.map((b) => (b.id === id ? { ...b, ...patch } : b));
 
-      const updatedBooking = updatedBookings.find(b => b.id === id);
-      if (!updatedBooking || !updatedBooking.discipline) {
-        return updatedBookings;
+      // Se o status for alterado para 'concluída', define a data de conclusão
+      if (patch.status === 'concluída') {
+        const updatedBooking = bookingsToUpdate.find(b => b.id === id);
+        if (updatedBooking) {
+          const completionDate = new Date().toISOString().split('T')[0];
+          bookingsToUpdate = bookingsToUpdate.map(b =>
+            b.discipline === updatedBooking.discipline
+              ? { ...b, completionDate: b.completionDate || completionDate }
+              : b
+          );
+        }
       }
 
-      // Lógica para data de conclusão
-      const disciplineBookings = updatedBookings.filter(b => b.discipline === updatedBooking.discipline);
-      const totalUnits = disciplineBookings[0]?.totalUnits ?? 0;
-      const actualRecorded = disciplineBookings.reduce((acc, b) => acc + (b.lessonsRecorded ?? b.recordedUnits ?? 0), 0);
-
-      if (totalUnits > 0 && actualRecorded >= totalUnits) {
-        const completionDate = new Date().toISOString().split('T')[0];
-        return updatedBookings.map(b =>
-          b.discipline === updatedBooking.discipline
-            ? { ...b, completionDate: b.completionDate || completionDate }
-            : b
-        );
-      }
-
-      return updatedBookings;
+      return bookingsToUpdate;
     });
   }, []);
 
@@ -125,6 +124,14 @@ export const BookingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         }
         return b;
       })
+    );
+  }, []);
+
+  const markAllRecordingsDone = useCallback((disciplineName: string) => {
+    setBookings((prev) =>
+      prev.map((b) =>
+        b.discipline === disciplineName ? { ...b, allRecordingsDone: true } : b
+      )
     );
   }, []);
 
@@ -146,8 +153,8 @@ export const BookingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [bookings]);
 
   const value = useMemo(
-    () => ({ bookings, addBooking, updateBooking, removeBooking, getBySlot, getDisciplineProgress, revertCompletion }),
-    [bookings, addBooking, updateBooking, removeBooking, getBySlot, getDisciplineProgress, revertCompletion]
+    () => ({ bookings, addBooking, updateBooking, removeBooking, getBySlot, getDisciplineProgress, revertCompletion, markAllRecordingsDone }),
+    [bookings, addBooking, updateBooking, removeBooking, getBySlot, getDisciplineProgress, revertCompletion, markAllRecordingsDone]
   );
 
   return <BookingsContext.Provider value={value}>{children}</BookingsContext.Provider>;

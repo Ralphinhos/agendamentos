@@ -34,7 +34,7 @@ const UploadPage = () => {
     updateBooking(booking.id, {
       uploadCompleted: true,
       uploadNotificationRead: false,
-      recordingStatus: 'delivered',
+      dailyDeliveryStatus: 'delivered',
     });
 
     toast({ title: "Upload Concluído", description: `Arquivo ${fileToUpload.name} enviado. O Admin foi notificado.` });
