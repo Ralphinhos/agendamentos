@@ -131,8 +131,19 @@ const Admin = () => {
     }
   ];
 
-  const ongoingData = useMemo(() => data.filter(b => b.disciplineProgress < 100), [data]);
-  const completedData = useMemo(() => data.filter(b => b.disciplineProgress === 100), [data]);
+  const ongoingData = useMemo(() => data.filter(b => !b.completionDate), [data]);
+  const completedData = useMemo(() => {
+    // Para a tabela de concluídos, queremos mostrar apenas uma linha por disciplina
+    const uniqueDisciplines: Record<string, BookingWithProgress> = {};
+    data.forEach(b => {
+      if (b.completionDate) {
+        if (!uniqueDisciplines[b.discipline]) {
+          uniqueDisciplines[b.discipline] = b;
+        }
+      }
+    });
+    return Object.values(uniqueDisciplines);
+  }, [data]);
 
   const ongoingTable = useReactTable({
     data: ongoingData,

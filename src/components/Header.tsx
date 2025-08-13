@@ -23,7 +23,8 @@ const Header = () => {
   const adminNotifications = useMemo(() => {
     return bookings.filter(b =>
       (b.teacherConfirmation === "NEGADO" && !b.cancellationRead) ||
-      (b.uploadCompleted && !b.uploadNotificationRead)
+      (b.uploadCompleted && !b.uploadNotificationRead) ||
+      (b.editorCancelled && !b.editorCancellationRead)
     );
   }, [bookings]);
 
@@ -93,21 +94,19 @@ const Header = () => {
                   {adminNotifications.length > 0 ? (
                     adminNotifications.map(b => {
                       const isUpload = b.uploadCompleted && !b.uploadNotificationRead;
-                      const isCancellation = b.teacherConfirmation === "NEGADO" && !b.cancellationRead;
+                      const isTeacherCancellation = b.teacherConfirmation === "NEGADO" && !b.cancellationRead;
+                      const isEditorCancellation = b.editorCancelled && !b.editorCancellationRead;
 
                       const handleSelect = () => {
-                        if (isUpload) {
-                          updateBooking(b.id, { uploadNotificationRead: true });
-                        }
-                        if (isCancellation) {
-                           updateBooking(b.id, { cancellationRead: true });
-                        }
+                        if (isUpload) updateBooking(b.id, { uploadNotificationRead: true });
+                        if (isTeacherCancellation) updateBooking(b.id, { cancellationRead: true });
+                        if (isEditorCancellation) updateBooking(b.id, { editorCancellationRead: true });
                       }
 
                       return (
                         <DropdownMenuItem key={b.id} onSelect={handleSelect}>
                           <div className="flex flex-col">
-                            {isCancellation && <>
+                            {isTeacherCancellation && <>
                               <span className="font-semibold">{b.teacher} cancelou</span>
                               <span className="text-xs text-muted-foreground">{b.discipline}</span>
                               {b.cancellationReason && <span className="text-xs text-muted-foreground italic">"{b.cancellationReason}"</span>}
@@ -115,6 +114,11 @@ const Header = () => {
                              {isUpload && <>
                               <span className="font-semibold">Upload Concluído</span>
                               <span className="text-xs text-muted-foreground">Editor enviou arquivos para: {b.discipline}</span>
+                            </>}
+                             {isEditorCancellation && <>
+                              <span className="font-semibold">Editor cancelou</span>
+                              <span className="text-xs text-muted-foreground">{b.discipline}</span>
+                              {b.cancellationReason && <span className="text-xs text-muted-foreground italic">"{b.cancellationReason}"</span>}
                             </>}
                           </div>
                         </DropdownMenuItem>

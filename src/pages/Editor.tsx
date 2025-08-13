@@ -153,7 +153,7 @@ const EditDetailsDialog = ({ booking, onSave }: { booking: Booking, onSave: (dat
 
 
 const Editor = () => {
-  const { bookings, updateBooking, revertCompletion } = useBookings();
+  const { bookings, updateBooking, revertCompletion, markAllRecordingsDone } = useBookings();
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
   const [editingBookingId, setEditingBookingId] = useState<string | null>(null);
@@ -194,6 +194,8 @@ const Editor = () => {
     updateBooking(bookingId, {
       status: 'cancelado',
       cancellationReason: reason,
+      editorCancelled: true,
+      editorCancellationRead: false,
     });
     toast({
       title: "Agendamento Cancelado",
@@ -222,7 +224,7 @@ const Editor = () => {
           >
             {row.original.status}
           </Badge>
-          {row.original.recordingStatus === 'delivered' && (
+          {row.original.dailyDeliveryStatus === 'delivered' && (
             <Badge variant="outline" className="text-green-600 border-green-600">Entregue</Badge>
           )}
         </div>
@@ -232,11 +234,19 @@ const Editor = () => {
       accessorKey: "disciplineProgress",
       header: "Progresso Disciplina",
       cell: ({ row }) => {
-        const percentage = row.original.disciplineProgress;
+        const isFirstInDiscipline = !row.original.allRecordingsDone &&
+          ongoingData.findIndex(b => b.discipline === row.original.discipline) === row.index;
+
         return (
           <div className="flex items-center gap-2">
-            <Progress value={percentage} className="w-[80%]" />
-            <span className="text-xs text-muted-foreground">{percentage.toFixed(0)}%</span>
+            <Progress value={row.original.disciplineProgress} className="w-[60%]" />
+            <span className="text-xs text-muted-foreground">{row.original.disciplineProgress.toFixed(0)}%</span>
+            {row.original.allRecordingsDone && <Badge variant="secondary">Gravações Finalizadas</Badge>}
+            {isFirstInDiscipline && (
+              <Button size="xs" variant="outline" onClick={() => markAllRecordingsDone(row.original.discipline)}>
+                Finalizar Gravações
+              </Button>
+            )}
           </div>
         )
       },
@@ -317,8 +327,20 @@ const Editor = () => {
   ];
 
 
-  const ongoingData = useMemo(() => data.filter(b => b.disciplineProgress < 100), [data]);
-  const completedData = useMemo(() => data.filter(b => b.disciplineProgress === 100), [data]);
+  const ongoingData = useMemo(() => data.filter(b => !b.completionDate), [data]);
+  const completedData = useMemo(() => {
+    // Para a tabela de concluídos, queremos mostrar apenas uma linha por disciplina
+    const uniqueDisciplines: Record<string, BookingWithProgress> = {};
+    data.forEach(b => {
+      if (b.completionDate) {
+        // Guarda a primeira ocorrência da disciplina concluída
+        if (!uniqueDisciplines[b.discipline]) {
+          uniqueDisciplines[b.discipline] = b;
+        }
+      }
+    });
+    return Object.values(uniqueDisciplines);
+  }, [data]);
 
   const ongoingTable = useReactTable({
     data: ongoingData,
@@ -388,7 +410,7 @@ const Editor = () => {
                 <TableRow
                   key={row.id}
                   className={cn({
-                    "bg-green-100/50 hover:bg-green-100/60": row.original.recordingStatus === 'delivered',
+                    "bg-green-100/50 hover:bg-green-100/60": row.original.dailyDeliveryStatus === 'delivered',
                   })}
                 >
                   {row.getVisibleCells().map(cell => (
