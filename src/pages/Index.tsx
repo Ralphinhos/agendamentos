@@ -17,10 +17,12 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useBookings } from "@/context/BookingsContext";
-import { toast } from "@/hooks/use-toast";
+import { useAddBooking } from "@/hooks/api/useAddBooking";
+import { useRemoveBooking } from "@/hooks/api/useRemoveBooking";
+import { toast } from "sonner";
 import { format, isSameDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Trash2, Link2, Send } from "lucide-react";
+import { Trash2, Link2, Send, Loader2 } from "lucide-react";
 
 interface Holiday {
   date: string;
@@ -38,24 +40,24 @@ function formatDateISO(d: Date) {
 }
 
 function Index() {
-  const { addBooking, getBySlot, bookings, getDisciplineProgress, removeBooking } = useBookings();
+  const { getBySlot, bookings, getDisciplineProgress, isLoading: isLoadingBookings } = useBookings();
+  const addBookingMutation = useAddBooking();
+  const removeBookingMutation = useRemoveBooking();
+
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [disciplineInfo, setDisciplineInfo] = useState<{ remaining: number; total: number } | null>(null);
 
   const bookedDays = useMemo(() => {
-    return bookings
-      .filter(
-        (b) =>
-          b.teacherConfirmation !== "NEGADO" &&
-          b.status !== "cancelado" &&
-          !b.completionDate
-      )
-      .map((b) => {
-        const [year, month, day] = b.date.split("-").map(Number);
+    if (!bookings) return [];
+    const dates = bookings
+      .filter(b => b.teacherConfirmation !== 'NEGADO' && b.status !== 'cancelado' && !b.completionDate)
+      .map(b => {
+        const [year, month, day] = b.date.split('-').map(Number);
         return new Date(year, month - 1, day);
       });
-  }, [bookings]);
+    return dates;
+  }, [bookings, bookings?.length]);
 
   const holidayDates = useMemo(() => {
     return holidays.map((h) => {
@@ -123,35 +125,27 @@ function Index() {
 
   const submit = () => {
     if (!form.teacher || !form.course || !form.discipline) {
-      toast({ title: "Preencha os campos obrigatórios.", description: "Docente, Curso e Disciplina." });
+      toast.error("Preencha os campos obrigatórios: Docente, Curso e Disciplina.");
       return;
     }
 
     if (disciplineInfo && form.recordedUnits > disciplineInfo.remaining) {
-      toast({
-        variant: "destructive",
-        title: "Limite de Aulas Excedido",
-        description: `Você está tentando agendar ${form.recordedUnits} aulas, mas apenas ${disciplineInfo.remaining} estão disponíveis para esta disciplina.`,
-      });
+      toast.error("Limite de Aulas Excedido", { description: `Você está tentando agendar ${form.recordedUnits} aulas, mas apenas ${disciplineInfo.remaining} estão disponíveis.` });
       return;
     }
 
     if (disciplineInfo && disciplineInfo.remaining <= 0) {
-      toast({
-        variant: "destructive",
-        title: "Disciplina Concluída",
-        description: "Todas as unidades desta disciplina já foram gravadas.",
-      });
+      toast.error("Disciplina Concluída", { description: "Todas as unidades desta disciplina já foram gravadas." });
       return;
     }
 
     const existing = getBySlot(form.dateISO, form.period);
     if (existing) {
-      toast({ title: "Horário já reservado", description: "Escolha outro horário disponível." });
+      toast.error("Horário já reservado", { description: "Escolha outro horário disponível." });
       return;
     }
-
-    addBooking({
+    
+    addBookingMutation.mutate({
       id: crypto.randomUUID(),
       date: form.dateISO,
       weekday: date ? format(date, "EEEE", { locale: ptBR }) : "",
@@ -164,12 +158,14 @@ function Index() {
       status: "pendente",
       totalUnits: form.totalUnits,
       recordedUnits: form.recordedUnits,
-    });
-
-    setOpen(false);
-    toast({
-      title: "Reserva realizada!",
-      description: `Agendado para ${format(new Date(form.dateISO.replace(/-/g, "/")), "dd/MM/yyyy")} no período da ${form.period.toLowerCase()}.`,
+    }, {
+      onSuccess: () => {
+        setOpen(false);
+        toast.success("Reserva realizada!", { description: `Agendado para ${format(new Date(form.dateISO.replace(/-/g, '/')), "dd/MM/yyyy")} no período da ${form.period.toLowerCase()}.` });
+      },
+      onError: () => {
+        toast.error("Falha ao agendar", { description: "Ocorreu um erro. Tente novamente." });
+      }
     });
   };
 
@@ -178,7 +174,7 @@ function Index() {
     console.log("--- SIMULAÇÃO DE ENVIO WHATSAPP ---");
     console.log(`Mensagem: ${message}`);
     console.log("------------------------------------");
-    toast({ title: "Simulação de WhatsApp", description: "A mensagem foi registrada no console." });
+    toast.info("Simulação de WhatsApp", { description: "A mensagem foi registrada no console." });
   };
 
   const selectedDayIsHoliday = date && holidayDates.some((holidayDate) => isSameDay(holidayDate, date));
@@ -246,13 +242,15 @@ function Index() {
                 }}
               />
             </div>
-
             <div className="space-y-4">
               <h2 className="text-lg font-semibold">
                 {date ? `Horários para ${format(date, "PPP", { locale: ptBR })}` : "Selecione uma data"}
               </h2>
-
-              {date && (
+              {isLoadingBookings ? (
+                <div className="flex items-center justify-center h-24">
+                  <Loader2 className="h-6 w-6 animate-spin" />
+                </div>
+              ) : date && (
                 selectedDayIsHoliday ? (
                   <div>
                     <p className="font-semibold text-red-500">Este dia é um feriado.</p>
@@ -267,10 +265,7 @@ function Index() {
 
                       const copyLink = () => {
                         navigator.clipboard.writeText(confirmationLink);
-                        toast({
-                          title: "Link copiado!",
-                          description: "O link de confirmação foi copiado para a área de transferência.",
-                        });
+                        toast.success("Link copiado!");
                       };
 
                       return (
@@ -282,12 +277,8 @@ function Index() {
                             </div>
                             {booked && (
                               <div className="text-xs text-muted-foreground mt-1 space-y-1">
-                                <p>
-                                  Reservado por <strong>{booked.teacher}</strong>
-                                </p>
-                                <p>
-                                  {booked.course} / {booked.discipline}
-                                </p>
+                                <p>Reservado por <strong>{booked.teacher}</strong></p>
+                                <p>{booked.course} / {booked.discipline}</p>
                               </div>
                             )}
                           </div>
@@ -295,32 +286,15 @@ function Index() {
                           <div className="flex items-center">
                             {booked ? (
                               <div className="flex flex-col items-center gap-1 ml-2">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8"
-                                  onClick={copyLink}
-                                  title="Copiar link de confirmação"
-                                >
+                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={copyLink} title="Copiar link de confirmação">
                                   <Link2 className="h-4 w-4" />
                                 </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 text-green-600 hover:text-green-700"
-                                  onClick={() => sendWhatsApp(confirmationLink, booked.teacher)}
-                                  title="Enviar lembrete via WhatsApp (Simulação)"
-                                >
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600 hover:text-green-700" onClick={() => sendWhatsApp(confirmationLink, booked.teacher)} title="Enviar lembrete via WhatsApp (Simulação)">
                                   <Send className="h-4 w-4" />
                                 </Button>
                                 <AlertDialog>
                                   <AlertDialogTrigger asChild>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-8 w-8 text-red-600 hover:text-red-700"
-                                      title="Excluir agendamento"
-                                    >
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-red-600 hover:text-red-700" title="Excluir agendamento">
                                       <Trash2 className="h-4 w-4" />
                                     </Button>
                                   </AlertDialogTrigger>
@@ -333,10 +307,7 @@ function Index() {
                                     </AlertDialogHeader>
                                     <AlertDialogFooter>
                                       <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                      <AlertDialogAction
-                                        onClick={() => removeBooking(booked.id)}
-                                        className="bg-destructive hover:bg-destructive/90"
-                                      >
+                                      <AlertDialogAction onClick={() => removeBookingMutation.mutate(booked.id)} className="bg-destructive hover:bg-destructive/90">
                                         Sim, remover
                                       </AlertDialogAction>
                                     </AlertDialogFooter>
@@ -423,10 +394,11 @@ function Index() {
                                     </div>
                                   </div>
                                   <div className="flex justify-end gap-2">
-                                    <Button variant="outline" onClick={() => setOpen(false)}>
-                                      Cancelar
+                                    <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+                                    <Button onClick={submit} disabled={addBookingMutation.isPending}>
+                                      {addBookingMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                      Confirmar Agendamento
                                     </Button>
-                                    <Button onClick={submit}>Confirmar Agendamento</Button>
                                   </div>
                                 </DialogContent>
                               </Dialog>

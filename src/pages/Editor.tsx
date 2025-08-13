@@ -1,5 +1,5 @@
 import { Helmet } from "react-helmet-async";
-import { useBookings, EditingStatus } from "@/context/BookingsContext";
+import { useBookings } from "@/context/BookingsContext";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -36,8 +36,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useState, useMemo } from "react";
-import { Booking } from "@/context/BookingsContext";
-import { toast } from "@/hooks/use-toast";
+import { Booking, EditingStatus } from "@/context/BookingsContext";
+import { toast } from "sonner";
 import {
   ColumnDef,
   flexRender,
@@ -64,6 +64,8 @@ import {
 import { ChevronDown, Upload, FileText, XCircle, CheckCircle2, Undo2, Check } from "lucide-react";
 import { BookingWithProgress } from "./Admin"; // Reutilizando o tipo
 import { Link } from "react-router-dom";
+import { useUpdateBooking } from "@/hooks/api/useUpdateBooking";
+import { useUpdateDiscipline } from "@/hooks/api/useUpdateDiscipline";
 
 const statusColors: Record<EditingStatus, string> = {
   pendente: "bg-red-500",
@@ -82,11 +84,7 @@ const CancelBookingDialog = ({ onConfirm }: { onConfirm: (reason: string) => voi
   const [reason, setReason] = useState("");
   const handleConfirm = () => {
     if (!reason.trim()) {
-      toast({
-        title: "Motivo obrigatório",
-        description: "Por favor, informe o motivo do cancelamento.",
-        variant: "destructive",
-      });
+      toast.error("Motivo obrigatório", { description: "Por favor, informe o motivo do cancelamento." });
       return;
     }
     onConfirm(reason);
@@ -159,13 +157,17 @@ const EditDetailsDialog = ({ booking, onSave }: { booking: Booking, onSave: (dat
 
 
 const Editor = () => {
-  const { bookings, updateBooking, revertCompletion, markAllRecordingsDone, reopenRecordings, completeDiscipline } = useBookings();
+  const { bookings } = useBookings();
+  const updateBookingMutation = useUpdateBooking();
+  const updateDisciplineMutation = useUpdateDiscipline();
+
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
   const [editingBookingId, setEditingBookingId] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<ExpandedState>({});
 
   const data = useMemo<BookingWithProgress[]>(() => {
+    if (!bookings) return [];
     const progressMap: Record<string, { totalUnits: number; actualRecorded: number }> = {};
 
     const activeBookings = bookings.filter(b => b.teacherConfirmation !== 'NEGADO' && b.status !== 'cancelado');
@@ -192,27 +194,62 @@ const Editor = () => {
   }, [bookings]);
 
   const handleStatusChange = (id: string, currentStatus: EditingStatus) => {
-    updateBooking(id, { status: nextStatus[currentStatus] });
+    updateBookingMutation.mutate({ id, status: nextStatus[currentStatus] });
   };
 
   const handleSaveDetails = (data: Partial<Booking>) => {
     if (!editingBookingId) return;
-    updateBooking(editingBookingId, data);
-    setEditingBookingId(null); // Fecha o dialog
+    updateBookingMutation.mutate({ id: editingBookingId, ...data }, {
+      onSuccess: () => {
+        setEditingBookingId(null);
+        toast.success("Detalhes salvos com sucesso!");
+      }
+    });
   };
 
   const handleCancelBooking = (bookingId: string, reason: string) => {
-    updateBooking(bookingId, {
+    updateBookingMutation.mutate({
+      id: bookingId,
       status: 'cancelado',
       cancellationReason: reason,
       editorCancelled: true,
       editorCancellationRead: false,
+    }, {
+      onSuccess: () => {
+        toast.success("Agendamento cancelado com sucesso.");
+      }
     });
-    toast({
-      title: "Agendamento Cancelado",
-      description: "O agendamento foi cancelado com sucesso.",
-    })
   };
+
+  const handleRevertCompletion = (disciplineName: string) => {
+    updateDisciplineMutation.mutate({
+      disciplineName,
+      patch: { completionDate: null, status: 'em-andamento' }
+    });
+  };
+
+  const handleMarkAllRecordingsDone = (disciplineName: string) => {
+    updateDisciplineMutation.mutate({
+      disciplineName,
+      patch: { allRecordingsDone: true }
+    });
+  };
+
+  const handleReopenRecordings = (disciplineName: string) => {
+    updateDisciplineMutation.mutate({
+      disciplineName,
+      patch: { allRecordingsDone: false }
+    });
+  };
+
+  const handleCompleteDiscipline = (disciplineName: string) => {
+    const completionDate = new Date().toISOString().split('T')[0];
+    updateDisciplineMutation.mutate({
+      disciplineName,
+      patch: { completionDate, status: 'concluída' }
+    });
+  };
+
 
   const columns: ColumnDef<BookingWithProgress>[] = [
     { accessorKey: "date", header: "Data", cell: ({ row }) => format(new Date(row.original.date.replace(/-/g, '/')), "dd/MM/yyyy") },
@@ -260,7 +297,7 @@ const Editor = () => {
               <>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" onClick={() => reopenRecordings(row.original.discipline)}>
+                    <Button variant="ghost" size="icon" onClick={() => handleReopenRecordings(row.original.discipline)}>
                       <Undo2 className="h-4 w-4 text-blue-600" />
                     </Button>
                   </TooltipTrigger>
@@ -270,7 +307,7 @@ const Editor = () => {
                 </Tooltip>
                  <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" onClick={() => completeDiscipline(row.original.discipline)}>
+                    <Button variant="ghost" size="icon" onClick={() => handleCompleteDiscipline(row.original.discipline)}>
                       <Check className="h-4 w-4 text-green-600" />
                     </Button>
                   </TooltipTrigger>
@@ -283,7 +320,7 @@ const Editor = () => {
             {isFirstInDiscipline && !row.original.allRecordingsDone && (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" onClick={() => markAllRecordingsDone(row.original.discipline)}>
+                  <Button variant="ghost" size="icon" onClick={() => handleMarkAllRecordingsDone(row.original.discipline)}>
                     <CheckCircle2 className="h-4 w-4 text-green-600" />
                   </Button>
                 </TooltipTrigger>
@@ -400,7 +437,7 @@ const Editor = () => {
           <Button
             variant="secondary"
             size="sm"
-            onClick={() => revertCompletion(row.original.discipline)}
+            onClick={() => handleRevertCompletion(row.original.discipline)}
           >
             Reverter
           </Button>
@@ -410,8 +447,9 @@ const Editor = () => {
   ];
 
 
-  const ongoingData = useMemo(() => data.filter(b => !b.completionDate), [data]);
+  const ongoingData = useMemo(() => data ? data.filter(b => !b.completionDate) : [], [data]);
   const completedData = useMemo(() => {
+    if (!data) return [];
     // Para a tabela de concluídos, queremos mostrar apenas uma linha por disciplina
     const uniqueDisciplines: Record<string, BookingWithProgress> = {};
     data.forEach(b => {
