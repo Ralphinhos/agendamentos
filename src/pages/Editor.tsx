@@ -55,7 +55,13 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
-import { ChevronDown, Upload } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+import { ChevronDown, Upload, FileText, XCircle, CheckCircle2, Undo2, Check } from "lucide-react";
 import { BookingWithProgress } from "./Admin"; // Reutilizando o tipo
 import { Link } from "react-router-dom";
 
@@ -153,7 +159,7 @@ const EditDetailsDialog = ({ booking, onSave }: { booking: Booking, onSave: (dat
 
 
 const Editor = () => {
-  const { bookings, updateBooking, revertCompletion, markAllRecordingsDone } = useBookings();
+  const { bookings, updateBooking, revertCompletion, markAllRecordingsDone, reopenRecordings, completeDiscipline } = useBookings();
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
   const [editingBookingId, setEditingBookingId] = useState<string | null>(null);
@@ -234,18 +240,47 @@ const Editor = () => {
       accessorKey: "disciplineProgress",
       header: "Progresso Disciplina",
       cell: ({ row }) => {
-        const isFirstInDiscipline = !row.original.allRecordingsDone &&
-          ongoingData.findIndex(b => b.discipline === row.original.discipline) === row.index;
+        const isFirstInDiscipline = ongoingData.findIndex(b => b.discipline === row.original.discipline) === row.index;
 
         return (
           <div className="flex items-center gap-2">
-            <Progress value={row.original.disciplineProgress} className="w-[60%]" />
+            <Progress value={row.original.disciplineProgress} className="w-[80%]" />
             <span className="text-xs text-muted-foreground">{row.original.disciplineProgress.toFixed(0)}%</span>
-            {row.original.allRecordingsDone && <Badge variant="secondary">Gravações Finalizadas</Badge>}
-            {isFirstInDiscipline && (
-              <Button size="xs" variant="outline" onClick={() => markAllRecordingsDone(row.original.discipline)}>
-                Finalizar Gravações
-              </Button>
+            {row.original.allRecordingsDone && isFirstInDiscipline && (
+              <>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" onClick={() => reopenRecordings(row.original.discipline)}>
+                      <Undo2 className="h-4 w-4 text-blue-600" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Reabrir Gravações</p>
+                  </TooltipContent>
+                </Tooltip>
+                 <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" onClick={() => completeDiscipline(row.original.discipline)}>
+                      <Check className="h-4 w-4 text-green-600" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Concluir Disciplina (Move para a tabela de concluídas)</p>
+                  </TooltipContent>
+                </Tooltip>
+              </>
+            )}
+            {isFirstInDiscipline && !row.original.allRecordingsDone && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" onClick={() => markAllRecordingsDone(row.original.discipline)}>
+                    <CheckCircle2 className="h-4 w-4 text-green-600" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Finalizar Todas as Gravações</p>
+                </TooltipContent>
+              </Tooltip>
             )}
           </div>
         )
@@ -254,31 +289,55 @@ const Editor = () => {
     {
       id: "actions",
       cell: ({ row }) => (
-        <div className="flex items-center gap-2">
-          <Dialog
-            open={editingBookingId === row.original.id}
-            onOpenChange={(isOpen) => !isOpen && setEditingBookingId(null)}
-          >
-            <DialogTrigger asChild>
-              <Button variant="outline" size="sm" onClick={() => setEditingBookingId(row.original.id)}>
-                Detalhes
+        <div className="flex items-center gap-1">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Dialog
+                open={editingBookingId === row.original.id}
+                onOpenChange={(isOpen) => !isOpen && setEditingBookingId(null)}
+              >
+                <DialogTrigger asChild>
+                  <Button variant="ghost" size="icon" onClick={() => setEditingBookingId(row.original.id)}>
+                    <FileText className="h-4 w-4" />
+                  </Button>
+                </DialogTrigger>
+                <EditDetailsDialog booking={row.original} onSave={handleSaveDetails} />
+              </Dialog>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Ver/Editar Detalhes</p>
+            </TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" asChild>
+                <Link to={`/upload/${row.original.id}`}>
+                  <Upload className="h-4 w-4" />
+                </Link>
               </Button>
-            </DialogTrigger>
-            <EditDetailsDialog booking={row.original} onSave={handleSaveDetails} />
-          </Dialog>
-          <Button size="sm" asChild>
-            <Link to={`/upload/${row.original.id}`}>
-              <Upload className="h-4 w-4 mr-2" />
-              Upload
-            </Link>
-          </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Upload de Arquivos</p>
+            </TooltipContent>
+          </Tooltip>
+
            {row.original.status !== 'concluída' && (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="destructive" size="sm">Cancelar</Button>
-              </AlertDialogTrigger>
-              <CancelBookingDialog onConfirm={(reason) => handleCancelBooking(row.original.id, reason)} />
-            </AlertDialog>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-600">
+                      <XCircle className="h-4 w-4" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <CancelBookingDialog onConfirm={(reason) => handleCancelBooking(row.original.id, reason)} />
+                </AlertDialog>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Cancelar Agendamento</p>
+              </TooltipContent>
+            </Tooltip>
           )}
         </div>
       )
@@ -374,8 +433,9 @@ const Editor = () => {
   });
 
   return (
-    <main className="max-w-7xl mx-auto px-4 py-8">
-      <Helmet>
+    <TooltipProvider>
+      <main className="max-w-7xl mx-auto px-4 py-8">
+        <Helmet>
         <title>Painel de Edição | EAD</title>
         <meta name="description" content="Acompanhe o status de edição das gravações." />
       </Helmet>
@@ -476,6 +536,7 @@ const Editor = () => {
         </CollapsibleContent>
       </Collapsible>
     </main>
+  </TooltipProvider>
   );
 };
 
