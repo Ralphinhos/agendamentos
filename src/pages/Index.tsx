@@ -46,7 +46,7 @@ function Index() {
 
   const bookedDays = useMemo(() => {
     const dates = bookings
-      .filter(b => b.teacherConfirmation !== 'NEGADO' && b.status !== 'cancelado')
+      .filter(b => b.teacherConfirmation !== 'NEGADO' && b.status !== 'cancelado' && !b.completionDate)
       .map(b => {
         const [year, month, day] = b.date.split('-').map(Number);
         return new Date(year, month - 1, day);
