@@ -209,7 +209,7 @@ const Header = () => {
                   )}
                    <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
-                    <Link to="/notifications" className="w-full justify-center">
+                    <Link to="/notificacoes" className="w-full justify-center">
                       Ver todas as notificações
                     </Link>
                   </DropdownMenuItem>
