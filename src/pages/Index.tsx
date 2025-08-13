@@ -1,29 +1,11 @@
 import { Helmet } from "react-helmet-async";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Calendar } from "@/components/ui/calendar";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { useBookings } from "@/context/BookingsContext";
-import { useAddBooking } from "@/hooks/api/useAddBooking";
-import { useRemoveBooking } from "@/hooks/api/useRemoveBooking";
-import { toast } from "sonner";
 import { format, isSameDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { useMemo } from "react";
-import { Trash2, Link2, Send, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import { TimeSlotItem } from "@/components/index/TimeSlotItem";
 
 interface Holiday {
   date: string;
@@ -36,18 +18,10 @@ const timeSlots = [
   { period: "TARDE" as const, start: "13:30", end: "17:30" },
 ];
 
-function formatDateISO(d: Date) {
-  return format(d, "yyyy-MM-dd");
-}
-
 function Index() {
-  const { getBySlot, bookings, getDisciplineProgress, isLoading: isLoadingBookings } = useBookings();
-  const addBookingMutation = useAddBooking();
-  const removeBookingMutation = useRemoveBooking();
-
+  const { bookings, isLoading: isLoadingBookings } = useBookings();
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [holidays, setHolidays] = useState<Holiday[]>([]);
-  const [disciplineInfo, setDisciplineInfo] = useState<{ remaining: number, total: number } | null>(null);
 
   const bookedDays = useMemo(() => {
     if (!bookings) return [];
@@ -58,7 +32,7 @@ function Index() {
         return new Date(year, month - 1, day);
       });
     return dates;
-  }, [bookings, bookings?.length]);
+  }, [bookings]);
 
   const holidayDates = useMemo(() => {
     return holidays.map(h => {
@@ -74,103 +48,6 @@ function Index() {
       .then(setHolidays)
       .catch(err => console.error("Falha ao buscar feriados:", err));
   }, []);
-
-
-  const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({
-    dateISO: "",
-    period: "MANHÃ" as "MANHÃ" | "TARDE",
-    start: "",
-    end: "",
-    teacher: "",
-    course: "",
-    discipline: "",
-    totalUnits: 8,
-    recordedUnits: 4,
-  });
-
-  const openDialog = (
-    dateISO: string,
-    period: "MANHÃ" | "TARDE",
-    start: string,
-    end: string
-  ) => {
-    setForm((f) => ({ ...f, dateISO, period, start, end, teacher: '', course: '', discipline: '', totalUnits: 8, recordedUnits: 4 }));
-    setDisciplineInfo(null);
-    setOpen(true);
-  };
-
-  const handleDisciplineChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const disciplineName = e.target.value;
-    setForm(f => ({ ...f, discipline: disciplineName }));
-
-    if (disciplineName.trim()) {
-      const progress = getDisciplineProgress(disciplineName.trim());
-      if (progress) {
-        setDisciplineInfo({
-          total: progress.totalUnits,
-          remaining: Math.max(0, progress.totalUnits - progress.actualRecorded),
-        });
-      } else {
-        setDisciplineInfo(null);
-      }
-    } else {
-      setDisciplineInfo(null);
-    }
-  };
-
-  const submit = () => {
-    if (!form.teacher || !form.course || !form.discipline) {
-      toast.error("Preencha os campos obrigatórios: Docente, Curso e Disciplina.");
-      return;
-    }
-
-    if (disciplineInfo && form.recordedUnits > disciplineInfo.remaining) {
-       toast.error("Limite de Aulas Excedido", { description: `Você está tentando agendar ${form.recordedUnits} aulas, mas apenas ${disciplineInfo.remaining} estão disponíveis.` });
-      return;
-    }
-
-    if (disciplineInfo && disciplineInfo.remaining <= 0) {
-      toast.error("Disciplina Concluída", { description: "Todas as unidades desta disciplina já foram gravadas." });
-      return;
-    }
-
-    const existing = getBySlot(form.dateISO, form.period);
-    if (existing) {
-      toast.error("Horário já reservado", { description: "Escolha outro horário disponível." });
-      return;
-    }
-    addBookingMutation.mutate({
-      id: crypto.randomUUID(),
-      date: form.dateISO,
-      weekday: date ? format(date, "EEEE", { locale: ptBR }) : "",
-      period: form.period,
-      start: form.start,
-      end: form.end,
-      course: form.course,
-      discipline: form.discipline,
-      teacher: form.teacher,
-      status: "pendente",
-      totalUnits: form.totalUnits,
-      recordedUnits: form.recordedUnits,
-    }, {
-      onSuccess: () => {
-        setOpen(false);
-        toast.success("Reserva realizada!", { description: `Agendado para ${format(new Date(form.dateISO.replace(/-/g, '/')), "dd/MM/yyyy")} no período da ${form.period.toLowerCase()}.` });
-      },
-      onError: () => {
-        toast.error("Falha ao agendar", { description: "Ocorreu um erro. Tente novamente." });
-      }
-    });
-  };
-
-  const sendWhatsApp = (link: string, teacher: string) => {
-    const message = `Olá, ${teacher}! Passando para lembrar da sua gravação agendada. Por favor, confirme sua presença no link: ${link}`;
-    console.log("--- SIMULAÇÃO DE ENVIO WHATSAPP ---");
-    console.log(`Mensagem: ${message}`);
-    console.log("------------------------------------");
-    toast.info("Simulação de WhatsApp", { description: "A mensagem foi registrada no console." });
-  };
 
   const selectedDayIsHoliday = date && holidayDates.some(holidayDate => isSameDay(holidayDate, date));
   const holidayName = date && holidays.find(h => {
@@ -222,146 +99,40 @@ function Index() {
                   day_hidden: "invisible",
                 }}
                 locale={ptBR}
-              disabled={holidayDates}
-              modifiers={{
-                holiday: holidayDates,
-                booked: bookedDays,
-              }}
-              modifiersClassNames={{
-                holiday: "text-red-500",
-                booked: "bg-brand-blue text-white rounded-full",
-              }}
-            />
-          </div>
-          <div className="space-y-4">
-            <h2 className="text-lg font-semibold">
-              {date ? `Horários para ${format(date, "PPP", { locale: ptBR })}` : "Selecione uma data"}
-            </h2>
-            {isLoadingBookings ? (
-              <div className="flex items-center justify-center h-24">
-                <Loader2 className="h-6 w-6 animate-spin" />
-              </div>
-            ) : date && (
-              selectedDayIsHoliday ? (
-                <div>
-                  <p className="font-semibold text-red-500">Este dia é um feriado.</p>
-                  <p className="text-sm text-muted-foreground">{holidayName}</p>
+                disabled={holidayDates}
+                modifiers={{
+                  holiday: holidayDates,
+                  booked: bookedDays,
+                }}
+                modifiersClassNames={{
+                  holiday: "text-red-500",
+                  booked: "bg-brand-blue text-white rounded-full",
+                }}
+              />
+            </div>
+            <div className="space-y-4">
+              <h2 className="text-lg font-semibold">
+                {date ? `Horários para ${format(date, "PPP", { locale: ptBR })}` : "Selecione uma data"}
+              </h2>
+              {isLoadingBookings ? (
+                <div className="flex items-center justify-center h-24">
+                  <Loader2 className="h-6 w-6 animate-spin" />
                 </div>
-              ) : (
-                <div className="space-y-3">
-                  {timeSlots.map((slot) => {
-                    const dateISO = formatDateISO(date);
-                    const booked = getBySlot(dateISO, slot.period);
-                    const confirmationLink = booked ? `${window.location.origin}/confirmacao/${booked.id}` : "";
-
-                    const copyLink = () => {
-                      navigator.clipboard.writeText(confirmationLink);
-                      toast.success("Link copiado!");
-                    };
-
-                    return (
-                      <div key={slot.period} className="flex items-start justify-between rounded-md border p-3">
-                        <div className="flex-1">
-                          <div className="text-xs text-muted-foreground">{slot.period}</div>
-                          <div className="font-medium">{slot.start} – {slot.end}</div>
-                          {booked && (
-                            <div className="text-xs text-muted-foreground mt-1 space-y-1">
-                              <p>Reservado por <strong>{booked.teacher}</strong></p>
-                              <p>{booked.course} / {booked.discipline}</p>
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="flex items-center">
-                          {booked ? (
-                            <div className="flex flex-col items-center gap-1 ml-2">
-                               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={copyLink} title="Copiar link de confirmação">
-                                <Link2 className="h-4 w-4" />
-                              </Button>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600 hover:text-green-700" onClick={() => sendWhatsApp(confirmationLink, booked.teacher)} title="Enviar lembrete via WhatsApp (Simulação)">
-                                <Send className="h-4 w-4" />
-                              </Button>
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-red-600 hover:text-red-700" title="Excluir agendamento">
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                      Esta ação não pode ser desfeita. Isso irá remover permanentemente o agendamento.
-                                    </AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => removeBookingMutation.mutate(booked.id)} className="bg-destructive hover:bg-destructive/90">
-                                      Sim, remover
-                                    </AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
-                            </div>
-                          ) : (
-                            <Dialog open={open && form.dateISO === dateISO && form.period === slot.period} onOpenChange={setOpen}>
-                              <DialogTrigger asChild>
-                                <Button
-                                  variant={"default"}
-                                  onClick={() => openDialog(dateISO, slot.period, slot.start, slot.end)}
-                                >
-                                  Agendar
-                                </Button>
-                              </DialogTrigger>
-                              <DialogContent>
-                                <DialogHeader>
-                                  <DialogTitle>
-                                    Agendar para {form.dateISO ? format(new Date(form.dateISO.replace(/-/g, '/')), "dd/MM/yyyy") : ""} · {form.period}
-                                  </DialogTitle>
-                                </DialogHeader>
-                                <div className="grid gap-4 py-4">
-                                  <div className="grid items-center gap-4">
-                                    <Label htmlFor="teacher">Docente</Label>
-                                    <Input id="teacher" value={form.teacher} onChange={(e) => setForm({ ...form, teacher: e.target.value })} placeholder="Nome do docente" />
-                                  </div>
-                                  <div className="grid items-center gap-4">
-                                    <Label htmlFor="course">Curso</Label>
-                                    <Input id="course" value={form.course} onChange={(e) => setForm({ ...form, course: e.target.value })} placeholder="Ex: Administração" />
-                                  </div>
-                                  <div className="grid items-center gap-4">
-                                    <Label htmlFor="discipline">Disciplina</Label>
-                                    <Input id="discipline" value={form.discipline} onChange={handleDisciplineChange} placeholder="Ex: Marketing I" />
-                                  </div>
-                                  <div className="grid items-center gap-4">
-                                    <Label htmlFor="totalUnits">Total de Unidades da Disciplina</Label>
-                                    <Input id="totalUnits" type="number" value={form.totalUnits} onChange={(e) => setForm({ ...form, totalUnits: Number(e.target.value) })} placeholder="Ex: 8" disabled={!!disciplineInfo} />
-                                  </div>
-                                   <div className="grid items-center gap-4">
-                                    <Label htmlFor="recordedUnits">Aulas a Serem Gravadas</Label>
-                                    <Input id="recordedUnits" type="number" value={form.recordedUnits} onChange={(e) => setForm({ ...form, recordedUnits: Number(e.target.value) })} placeholder="Ex: 4" />
-                                    {disciplineInfo && (
-                                      <p className="text-sm text-muted-foreground">
-                                        Unidades restantes para gravar: {disciplineInfo.remaining} de {disciplineInfo.total}.
-                                      </p>
-                                    )}
-                                  </div>
-                                </div>
-                                <div className="flex justify-end gap-2">
-                                  <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
-                                  <Button onClick={submit} disabled={addBookingMutation.isPending}>
-                                    {addBookingMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                    Confirmar Agendamento
-                                    </Button>
-                                </div>
-                              </DialogContent>
-                          </Dialog>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )
-            )}
+              ) : date && (
+                selectedDayIsHoliday ? (
+                  <div>
+                    <p className="font-semibold text-red-500">Este dia é um feriado.</p>
+                    <p className="text-sm text-muted-foreground">{holidayName}</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {timeSlots.map((slot) => (
+                      <TimeSlotItem key={slot.period} slot={slot} date={date} />
+                    ))}
+                  </div>
+                )
+              )}
+            </div>
           </div>
         </div>
       </section>

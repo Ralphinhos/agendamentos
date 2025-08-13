@@ -40,6 +40,13 @@ export interface Booking {
   editorCancellationRead?: boolean;
 }
 
+// This type is shared across Admin and Editor pages
+export type BookingWithProgress = Booking & {
+  disciplineProgress: number;
+  actualRecorded: number;
+  totalUnits: number;
+};
+
 interface BookingsContextValue {
   bookings: Booking[];
   isLoading: boolean;

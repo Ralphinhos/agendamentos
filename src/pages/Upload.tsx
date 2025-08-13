@@ -7,11 +7,13 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft } from "lucide-react";
 import { useState } from "react";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
+import { useUpdateBooking } from "@/hooks/api/useUpdateBooking";
 
 const UploadPage = () => {
   const { id } = useParams<{ id: string }>();
-  const { bookings, updateBooking } = useBookings();
+  const { bookings } = useBookings();
+  const updateBookingMutation = useUpdateBooking();
   const [fileToUpload, setFileToUpload] = useState<File | null>(null);
 
   const booking = bookings.find(b => b.id === id);
@@ -31,14 +33,19 @@ const UploadPage = () => {
     if (!fileToUpload) return;
 
     // Simula o upload e depois atualiza o booking para notificar o admin
-    updateBooking(booking.id, {
-      uploadCompleted: true,
-      uploadNotificationRead: false,
-      dailyDeliveryStatus: 'delivered',
+    updateBookingMutation.mutate({
+      id: booking.id,
+      patch: {
+        uploadCompleted: true,
+        uploadNotificationRead: false,
+        dailyDeliveryStatus: 'delivered',
+      }
+    }, {
+      onSuccess: () => {
+        toast.success("Upload Concluído", { description: `Arquivo ${fileToUpload.name} enviado. O Admin foi notificado.` });
+        setFileToUpload(null);
+      }
     });
-
-    toast({ title: "Upload Concluído", description: `Arquivo ${fileToUpload.name} enviado. O Admin foi notificado.` });
-    setFileToUpload(null);
   };
 
   return (
@@ -68,7 +75,7 @@ const UploadPage = () => {
               <p className="text-sm text-muted-foreground">Selecione o arquivo de vídeo finalizado para enviar.</p>
             </div>
             <Input id="file-upload" type="file" onChange={(e) => setFileToUpload(e.target.files ? e.target.files[0] : null)} />
-            <Button className="w-full" disabled={!fileToUpload} onClick={handleDriveUpload}>
+            <Button className="w-full" disabled={!fileToUpload || updateBookingMutation.isPending} onClick={handleDriveUpload}>
               Subir para o Drive (Sim)
             </Button>
           </div>

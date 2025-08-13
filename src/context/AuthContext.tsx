@@ -1,40 +1,92 @@
-import React, { createContext, useContext, useState, useEffect, useMemo } from "react";
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from "react";
 
 type Role = "admin" | "editor";
+interface User {
+  name: string;
+  email: string;
+  role: Role;
+}
 
 interface AuthContextValue {
-  role: Role | null;
-  login: (role: Role) => void;
+  user: User | null;
+  token: string | null;
+  login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-const STORAGE_KEY = "ead-auth-role-v1";
+const TOKEN_KEY = "ead-auth-token-v1";
+const USER_KEY = "ead-auth-user-v1";
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [role, setRole] = useState<Role | null>(() => {
-    // Initialize role directly from localStorage
+  const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
     try {
-      return localStorage.getItem(STORAGE_KEY) as Role | null;
-    } catch {
-      return null;
+      const storedToken = localStorage.getItem(TOKEN_KEY);
+      const storedUser = localStorage.getItem(USER_KEY);
+      if (storedToken && storedUser) {
+        setToken(storedToken);
+        setUser(JSON.parse(storedUser));
+      }
+    } catch (error) {
+      console.error("Failed to load auth state from storage", error);
+    } finally {
+      setIsLoading(false);
     }
-  });
-  const [isLoading, setIsLoading] = useState(false); // No longer need initial loading state
+  }, []);
 
-  const login = (newRole: Role) => {
-    setRole(newRole);
-    localStorage.setItem(STORAGE_KEY, newRole);
-  };
+  const login = useCallback(async (email: string, password: string) => {
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
 
-  const logout = () => {
-    setRole(null);
-    localStorage.removeItem(STORAGE_KEY);
-  };
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Falha no login");
+      }
 
-  const value = useMemo(() => ({ role, login, logout, isLoading }), [role, isLoading]);
+      const { user: loggedInUser, token: newToken } = await response.json();
+
+      setUser(loggedInUser);
+      setToken(newToken);
+
+      localStorage.setItem(USER_KEY, JSON.stringify(loggedInUser));
+      localStorage.setItem(TOKEN_KEY, newToken);
+
+    } catch (error) {
+      console.error("Login failed:", error);
+      // Re-throw the error to be caught by the calling component
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const logout = useCallback(() => {
+    setUser(null);
+    setToken(null);
+    localStorage.removeItem(USER_KEY);
+    localStorage.removeItem(TOKEN_KEY);
+  }, []);
+
+  const value = useMemo(() => ({
+    user,
+    token,
+    // Provide role for easier access in components
+    role: user?.role || null,
+    login,
+    logout,
+    isLoading
+  }), [user, token, login, logout, isLoading]);
 
   return (
     <AuthContext.Provider value={value}>
