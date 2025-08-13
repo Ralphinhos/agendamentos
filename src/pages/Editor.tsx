@@ -1,14 +1,6 @@
 import { Helmet } from "react-helmet-async";
-import { useBookings } from "@/context/BookingsContext";
+import { useBookings, BookingWithProgress } from "@/context/BookingsContext";
 import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -18,54 +10,40 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  DialogFooter,
-  DialogClose
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { useState, useMemo } from "react";
 import { Booking, EditingStatus } from "@/context/BookingsContext";
 import { toast } from "sonner";
 import {
   ColumnDef,
-  flexRender,
-  getCoreRowModel,
   useReactTable,
   SortingState,
   getSortedRowModel,
   getFilteredRowModel,
   getExpandedRowModel,
   ExpandedState,
+  getCoreRowModel,
 } from "@tanstack/react-table";
 import { Progress } from "@/components/ui/progress";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible"
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { ChevronDown, Upload, FileText, XCircle, CheckCircle2, Undo2, Check } from "lucide-react";
-import { BookingWithProgress } from "./Admin"; // Reutilizando o tipo
+import { Upload, FileText, XCircle, CheckCircle2, Undo2, Check } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useUpdateBooking } from "@/hooks/api/useUpdateBooking";
 import { useUpdateDiscipline } from "@/hooks/api/useUpdateDiscipline";
+import { CancelBookingDialog } from "@/components/editor/CancelBookingDialog";
+import { EditDetailsDialog } from "@/components/editor/EditDetailsDialog";
+import { OngoingBookingsTable } from "@/components/editor/OngoingBookingsTable";
+import { CompletedDisciplinesTable } from "@/components/editor/CompletedDisciplinesTable";
 
 const statusColors: Record<EditingStatus, string> = {
   pendente: "bg-red-500",
@@ -78,83 +56,6 @@ const nextStatus: Record<EditingStatus, EditingStatus> = {
   "em-andamento": "concluída",
   concluída: "pendente",
 };
-
-// Componente do Dialog para evitar re-render da tabela principal
-const CancelBookingDialog = ({ onConfirm }: { onConfirm: (reason: string) => void }) => {
-  const [reason, setReason] = useState("");
-  const handleConfirm = () => {
-    if (!reason.trim()) {
-      toast.error("Motivo obrigatório", { description: "Por favor, informe o motivo do cancelamento." });
-      return;
-    }
-    onConfirm(reason);
-  }
-
-  return (
-    <AlertDialogContent>
-      <AlertDialogHeader>
-        <AlertDialogTitle>Cancelar Agendamento</AlertDialogTitle>
-        <AlertDialogDescription>
-          Por favor, informe o motivo do cancelamento. Esta ação não pode ser desfeita.
-        </AlertDialogDescription>
-      </AlertDialogHeader>
-      <div className="py-4">
-        <Textarea
-          placeholder="Descreva o motivo do cancelamento aqui..."
-          value={reason}
-          onChange={(e) => setReason(e.target.value)}
-        />
-      </div>
-      <AlertDialogFooter>
-        <AlertDialogCancel>Voltar</AlertDialogCancel>
-        <AlertDialogAction onClick={handleConfirm} disabled={!reason.trim()}>Confirmar Cancelamento</AlertDialogAction>
-      </AlertDialogFooter>
-    </AlertDialogContent>
-  )
-}
-
-const EditDetailsDialog = ({ booking, onSave }: { booking: Booking, onSave: (data: Partial<Booking>) => void }) => {
-  const [formData, setFormData] = useState({
-    lessonsRecorded: booking.lessonsRecorded ?? 0,
-    editorNotes: booking.editorNotes ?? "",
-  });
-
-  const handleSave = () => {
-    onSave(formData);
-  }
-
-  return (
-    <DialogContent>
-      <DialogHeader>
-        <DialogTitle>Detalhes da Gravação</DialogTitle>
-      </DialogHeader>
-      <div className="space-y-4 py-4">
-        <div>
-          <Label>Aulas Gravadas</Label>
-          <Input
-            type="number"
-            placeholder="Nº de aulas"
-            value={formData.lessonsRecorded}
-            onChange={(e) => setFormData(prev => ({ ...prev, lessonsRecorded: Number(e.target.value) }))}
-          />
-        </div>
-        <div>
-          <Label>Observações do Editor</Label>
-          <Textarea
-            placeholder="Algum problema na gravação? Áudio, vídeo, etc."
-            value={formData.editorNotes}
-            onChange={(e) => setFormData(prev => ({ ...prev, editorNotes: e.target.value }))}
-          />
-        </div>
-      </div>
-      <DialogFooter>
-        <DialogClose asChild><Button variant="outline">Cancelar</Button></DialogClose>
-        <Button onClick={handleSave}>Salvar Alterações</Button>
-      </DialogFooter>
-    </DialogContent>
-  )
-}
-
 
 const Editor = () => {
   const { bookings } = useBookings();
@@ -170,36 +71,46 @@ const Editor = () => {
     if (!bookings) return [];
     const progressMap: Record<string, { totalUnits: number; actualRecorded: number }> = {};
 
-    const activeBookings = bookings.filter(b => b.teacherConfirmation !== 'NEGADO' && b.status !== 'cancelado');
+    const activeBookings = bookings.filter(b => b.teacherConfirmation !== 'NEGADO' && !b.editorCancelled);
 
     activeBookings.forEach(b => {
       if (!b.discipline || !b.totalUnits) return;
       if (!progressMap[b.discipline]) {
         progressMap[b.discipline] = { totalUnits: b.totalUnits, actualRecorded: 0 };
       }
-      const unitsToAdd = b.lessonsRecorded ?? b.recordedUnits ?? 0;
-      progressMap[b.discipline].actualRecorded += unitsToAdd;
+      if (b.status !== 'concluída') {
+        const unitsToAdd = b.lessonsRecorded ?? 0;
+        progressMap[b.discipline].actualRecorded += unitsToAdd;
+      }
     });
+
+    // A second pass for completed ones to ensure the total is right
+    activeBookings.forEach(b => {
+        if (b.discipline && progressMap[b.discipline] && b.status === 'concluída') {
+             progressMap[b.discipline].actualRecorded += b.lessonsRecorded ?? 0;
+        }
+    })
+
 
     return activeBookings.map(b => {
       const progress = progressMap[b.discipline] || { totalUnits: 0, actualRecorded: 0 };
-      const percentage = progress.totalUnits > 0 ? (progress.actualRecorded / progress.totalUnits) * 100 : 0;
+      const totalRecordedForDiscipline = progress.actualRecorded;
+      const percentage = progress.totalUnits > 0 ? (totalRecordedForDiscipline / progress.totalUnits) * 100 : 0;
       return {
         ...b,
         disciplineProgress: Math.min(percentage, 100),
-        actualRecorded: progress.actualRecorded,
-        totalUnits: progress.totalUnits
+        actualRecorded: totalRecordedForDiscipline,
       };
     });
   }, [bookings]);
 
   const handleStatusChange = (id: string, currentStatus: EditingStatus) => {
-    updateBookingMutation.mutate({ id, status: nextStatus[currentStatus] });
+    updateBookingMutation.mutate({ id, patch: { status: nextStatus[currentStatus] }});
   };
 
   const handleSaveDetails = (data: Partial<Booking>) => {
     if (!editingBookingId) return;
-    updateBookingMutation.mutate({ id: editingBookingId, ...data }, {
+    updateBookingMutation.mutate({ id: editingBookingId, patch: data }, {
       onSuccess: () => {
         setEditingBookingId(null);
         toast.success("Detalhes salvos com sucesso!");
@@ -210,10 +121,11 @@ const Editor = () => {
   const handleCancelBooking = (bookingId: string, reason: string) => {
     updateBookingMutation.mutate({
       id: bookingId,
-      status: 'cancelado',
-      cancellationReason: reason,
-      editorCancelled: true,
-      editorCancellationRead: false,
+      patch: {
+        editorCancelled: true,
+        cancellationReason: reason,
+        cancellationReadByEditor: true,
+      }
     }, {
       onSuccess: () => {
         toast.success("Agendamento cancelado com sucesso.");
@@ -224,7 +136,7 @@ const Editor = () => {
   const handleRevertCompletion = (disciplineName: string) => {
     updateDisciplineMutation.mutate({
       disciplineName,
-      patch: { completionDate: null, status: 'em-andamento' }
+      patch: { completionDate: undefined }
     });
   };
 
@@ -246,12 +158,12 @@ const Editor = () => {
     const completionDate = new Date().toISOString().split('T')[0];
     updateDisciplineMutation.mutate({
       disciplineName,
-      patch: { completionDate, status: 'concluída' }
+      patch: { completionDate }
     });
   };
 
 
-  const columns: ColumnDef<BookingWithProgress>[] = [
+  const ongoingColumns: ColumnDef<BookingWithProgress>[] = [
     { accessorKey: "date", header: "Data", cell: ({ row }) => format(new Date(row.original.date.replace(/-/g, '/')), "dd/MM/yyyy") },
     {
       id: "time",
@@ -260,7 +172,7 @@ const Editor = () => {
     },
     { accessorKey: "course", header: "Curso" },
     { accessorKey: "discipline", header: "Disciplina" },
-    { accessorKey: "recordedUnits", header: "Aulas Agendadas" },
+    { accessorKey: "lessonsRecorded", header: "Aulas Gravadas" },
     {
       accessorKey: "status",
       header: "Status Edição",
@@ -353,7 +265,7 @@ const Editor = () => {
                 <p>Ver/Editar Detalhes</p>
               </TooltipContent>
             </Tooltip>
-            <EditDetailsDialog booking={row.original} onSave={handleSaveDetails} />
+            {editingBookingId === row.original.id && <EditDetailsDialog booking={row.original} onSave={handleSaveDetails} />}
           </Dialog>
 
           <Tooltip>
@@ -450,11 +362,9 @@ const Editor = () => {
   const ongoingData = useMemo(() => data ? data.filter(b => !b.completionDate) : [], [data]);
   const completedData = useMemo(() => {
     if (!data) return [];
-    // Para a tabela de concluídos, queremos mostrar apenas uma linha por disciplina
     const uniqueDisciplines: Record<string, BookingWithProgress> = {};
     data.forEach(b => {
       if (b.completionDate) {
-        // Guarda a primeira ocorrência da disciplina concluída
         if (!uniqueDisciplines[b.discipline]) {
           uniqueDisciplines[b.discipline] = b;
         }
@@ -465,12 +375,8 @@ const Editor = () => {
 
   const ongoingTable = useReactTable({
     data: ongoingData,
-    columns,
-    state: {
-      sorting,
-      globalFilter,
-      expanded,
-    },
+    columns: ongoingColumns,
+    state: { sorting, globalFilter, expanded, },
     onSortingChange: setSorting,
     onGlobalFilterChange: setGlobalFilter,
     onExpandedChange: setExpanded,
@@ -483,10 +389,7 @@ const Editor = () => {
    const completedTable = useReactTable({
     data: completedData,
     columns: completedColumns,
-    state: {
-      sorting,
-      globalFilter,
-    },
+    state: { sorting, globalFilter, },
     onSortingChange: setSorting,
     onGlobalFilterChange: setGlobalFilter,
     getCoreRowModel: getCoreRowModel(),
@@ -512,91 +415,9 @@ const Editor = () => {
         />
       </div>
 
-      <div className="rounded-lg border bg-card">
-        <Table>
-          <TableHeader>
-            {ongoingTable.getHeaderGroups().map(headerGroup => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map(header => (
-                  <TableHead key={header.id} onClick={header.column.getToggleSortingHandler()}>
-                    {flexRender(header.column.columnDef.header, header.getContext())}
-                    {{ asc: ' ▲', desc: ' ▼' }[header.column.getIsSorted() as string] ?? null}
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {ongoingTable.getRowModel().rows.length > 0 ? (
-              ongoingTable.getRowModel().rows.map(row => (
-                <TableRow
-                  key={row.id}
-                  className={cn({
-                    "bg-green-100/50 hover:bg-green-100/60": row.original.dailyDeliveryStatus === 'delivered',
-                  })}
-                >
-                  {row.getVisibleCells().map(cell => (
-                    <TableCell key={cell.id}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center">
-                  Nenhum agendamento em andamento.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
+      <OngoingBookingsTable table={ongoingTable} columns={ongoingColumns} />
+      <CompletedDisciplinesTable table={completedTable} columns={completedColumns} />
 
-       <Collapsible className="mt-6">
-        <CollapsibleTrigger asChild>
-          <div className="flex items-center gap-2 cursor-pointer">
-            <h2 className="text-xl font-semibold">Disciplinas Concluídas</h2>
-            <ChevronDown className="h-5 w-5 transition-transform [&[data-state=open]]:rotate-180" />
-          </div>
-        </CollapsibleTrigger>
-        <CollapsibleContent className="mt-4">
-          <div className="rounded-lg border bg-card">
-            <Table>
-              <TableHeader>
-                {completedTable.getHeaderGroups().map(headerGroup => (
-                  <TableRow key={headerGroup.id}>
-                    {headerGroup.headers.map(header => (
-                      <TableHead key={header.id}>
-                        {flexRender(header.column.columnDef.header, header.getContext())}
-                      </TableHead>
-                    ))}
-                  </TableRow>
-                ))}
-              </TableHeader>
-              <TableBody>
-                {completedTable.getRowModel().rows.length > 0 ? (
-                  completedTable.getRowModel().rows.map(row => (
-                    <TableRow key={row.id}>
-                      {row.getVisibleCells().map(cell => (
-                        <TableCell key={cell.id}>
-                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={columns.length} className="h-24 text-center">
-                      Nenhuma disciplina concluída.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CollapsibleContent>
-      </Collapsible>
     </main>
   </TooltipProvider>
   );

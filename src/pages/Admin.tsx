@@ -1,6 +1,6 @@
 import React from "react";
 import { Helmet } from "react-helmet-async";
-import { useBookings, EditingStatus, Booking } from "@/context/BookingsContext";
+import { useBookings, EditingStatus, Booking, BookingWithProgress } from "@/context/BookingsContext";
 import {
   Table,
   TableBody,
@@ -47,13 +47,8 @@ const statusColors: Record<EditingStatus, string> = {
   concluída: "bg-green-500",
 };
 
-// Estrutura de dados para a nova tabela
-export type BookingWithProgress = Booking & {
-  disciplineProgress: number; // 0-100
-};
-
 const Admin = () => {
-  const { bookings, removeBooking } = useBookings();
+  const { bookings } = useBookings();
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
   const [ongoingExpanded, setOngoingExpanded] = useState<ExpandedState>({});

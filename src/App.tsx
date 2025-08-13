@@ -1,4 +1,3 @@
-import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -23,7 +22,7 @@ import { SessionTimeoutDialog } from "./components/SessionTimeoutDialog";
 const queryClient = new QueryClient();
 
 const AppContent = () => {
-  const { logout, role } = useAuth();
+  const { logout, user } = useAuth();
 
   const { isWarning, reset: resetIdleTimer } = useIdleTimer({
     onIdle: logout,
@@ -33,7 +32,7 @@ const AppContent = () => {
 
   return (
     <>
-      {role && (
+      {user && (
         <SessionTimeoutDialog
           isOpen={isWarning}
           onContinue={resetIdleTimer}
@@ -74,7 +73,6 @@ const App = () => (
     <HelmetProvider>
       <ThemeProvider attribute="class" defaultTheme="light" storageKey="vite-ui-theme">
         <TooltipProvider>
-          <Toaster />
           <Sonner />
           <BrowserRouter>
             <AuthProvider>
