@@ -5,6 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import { Button } from "./ui/button";
 import { ThemeToggle } from "./ThemeToggle";
 import { useBookings } from "@/context/BookingsContext";
+import { useUpdateBooking } from "@/hooks/api/useUpdateBooking";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,10 +19,12 @@ import { useMemo } from "react";
 const Header = () => {
   const location = useLocation();
   const { role, logout } = useAuth();
-  const { bookings, updateBooking } = useBookings();
+  const { bookings } = useBookings();
+  const updateBookingMutation = useUpdateBooking();
   const isActive = (path: string) => location.pathname === path;
 
   const adminNotifications = useMemo(() => {
+    if (!bookings) return [];
     return bookings.filter(b =>
       (b.teacherConfirmation === "NEGADO" && !b.cancellationRead) ||
       (b.uploadCompleted && !b.uploadNotificationRead) ||
@@ -30,6 +33,7 @@ const Header = () => {
   }, [bookings]);
 
   const editorNotifications = useMemo(() => {
+    if (!bookings) return [];
     return bookings.filter(b =>
       ((b.teacherConfirmation === "NEGADO" || b.status === "cancelado") && !b.cancellationReadByEditor) ||
       (b.uploadCompleted && !b.uploadNotificationRead)
@@ -99,9 +103,9 @@ const Header = () => {
                       const isEditorCancellation = b.editorCancelled && !b.editorCancellationRead;
 
                       const handleSelect = () => {
-                        if (isUpload) updateBooking(b.id, { uploadNotificationRead: true });
-                        if (isTeacherCancellation) updateBooking(b.id, { cancellationRead: true });
-                        if (isEditorCancellation) updateBooking(b.id, { editorCancellationRead: true });
+                        if (isUpload) updateBookingMutation.mutate({ id: b.id, uploadNotificationRead: true });
+                        if (isTeacherCancellation) updateBookingMutation.mutate({ id: b.id, cancellationRead: true });
+                        if (isEditorCancellation) updateBookingMutation.mutate({ id: b.id, editorCancellationRead: true });
                       }
 
                       return (
@@ -174,8 +178,8 @@ const Header = () => {
                       const isCancellation = (b.teacherConfirmation === "NEGADO" || b.status === "cancelado") && !b.cancellationReadByEditor;
 
                       const handleSelect = () => {
-                        if (isUpload) updateBooking(b.id, { uploadNotificationRead: true });
-                        if (isCancellation) updateBooking(b.id, { cancellationReadByEditor: true });
+                        if (isUpload) updateBookingMutation.mutate({ id: b.id, uploadNotificationRead: true });
+                        if (isCancellation) updateBookingMutation.mutate({ id: b.id, cancellationReadByEditor: true });
                       };
 
                       return (
