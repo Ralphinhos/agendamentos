@@ -11,6 +11,8 @@ import {
 import { useMemo, useEffect } from "react";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Upload, XCircle } from "lucide-react";
 
 const NotificationsPage = () => {
   const { bookings, updateBooking } = useBookings();
@@ -52,10 +54,19 @@ const NotificationsPage = () => {
         </p>
       </div>
 
-      <div className="space-y-10">
-        <div>
-          <h2 className="text-2xl font-semibold mb-4">Uploads Concluídos</h2>
-          <div className="rounded-lg border bg-card">
+      <Tabs defaultValue="uploads" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="uploads">
+            <Upload className="h-4 w-4 mr-2" />
+            Uploads Concluídos
+          </TabsTrigger>
+          <TabsTrigger value="cancellations">
+            <XCircle className="h-4 w-4 mr-2" />
+            Cancelamentos
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="uploads">
+          <div className="rounded-lg border bg-card mt-4">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -83,11 +94,9 @@ const NotificationsPage = () => {
               </TableBody>
             </Table>
           </div>
-        </div>
-
-        <div>
-          <h2 className="text-2xl font-semibold mb-4">Cancelamentos por Docentes</h2>
-          <div className="rounded-lg border bg-card">
+        </TabsContent>
+        <TabsContent value="cancellations">
+           <div className="rounded-lg border bg-card mt-4">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -119,8 +128,8 @@ const NotificationsPage = () => {
               </TableBody>
             </Table>
           </div>
-        </div>
-      </div>
+        </TabsContent>
+      </Tabs>
     </main>
   );
 };

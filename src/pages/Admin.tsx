@@ -169,7 +169,7 @@ const Admin = () => {
     },
   });
 
-  const completedAdminColumns: ColumnDef<BookingWithProgress>[] = columns.filter(c => c.id !== 'time');
+  const completedAdminColumns: ColumnDef<BookingWithProgress>[] = columns.filter(c => c.id !== 'time' && c.accessorKey !== 'disciplineProgress');
   const dateColumnIndex = completedAdminColumns.findIndex(c => c.accessorKey === 'date');
   completedAdminColumns.splice(dateColumnIndex + 1, 0, {
       accessorKey: "completionDate",
@@ -178,6 +178,11 @@ const Admin = () => {
         ? format(new Date(row.original.completionDate.replace(/-/g, '/')), "dd/MM/yyyy")
         : "N/A"
   });
+  // Re-add progress bar to keep it in the completed view
+  const progressColumn = columns.find(c => c.accessorKey === 'disciplineProgress');
+  if (progressColumn) {
+    completedAdminColumns.splice(3, 0, progressColumn);
+  }
 
 
   const completedTable = useReactTable({

@@ -359,6 +359,21 @@ const Editor = () => {
     { accessorKey: "course", header: "Curso" },
     { accessorKey: "discipline", header: "Disciplina" },
     {
+      accessorKey: "disciplineProgress",
+      header: "Progresso Disciplina",
+      cell: ({ row }) => {
+        const { disciplineProgress, actualRecorded, totalUnits } = row.original;
+        return (
+          <div className="w-full relative">
+            <Progress value={disciplineProgress} className="h-5" />
+            <span className="absolute inset-0 flex items-center justify-center text-xs font-medium text-primary-foreground">
+              {actualRecorded}/{totalUnits}
+            </span>
+          </div>
+        )
+      },
+    },
+    {
       accessorKey: "completionDate",
       header: "Data de Conclusão",
       cell: ({ row }) => row.original.completionDate
