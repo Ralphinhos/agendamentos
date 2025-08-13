@@ -180,9 +180,14 @@ const Editor = () => {
     });
 
     return activeBookings.map(b => {
-      const progress = progressMap[b.discipline];
-      const percentage = progress ? (progress.actualRecorded / progress.totalUnits) * 100 : 0;
-      return { ...b, disciplineProgress: Math.min(percentage, 100) };
+      const progress = progressMap[b.discipline] || { totalUnits: 0, actualRecorded: 0 };
+      const percentage = progress.totalUnits > 0 ? (progress.actualRecorded / progress.totalUnits) * 100 : 0;
+      return {
+        ...b,
+        disciplineProgress: Math.min(percentage, 100),
+        actualRecorded: progress.actualRecorded,
+        totalUnits: progress.totalUnits
+      };
     });
   }, [bookings]);
 
@@ -240,12 +245,17 @@ const Editor = () => {
       accessorKey: "disciplineProgress",
       header: "Progresso Disciplina",
       cell: ({ row }) => {
+        const { disciplineProgress, actualRecorded, totalUnits } = row.original;
         const isFirstInDiscipline = ongoingData.findIndex(b => b.discipline === row.original.discipline) === row.index;
 
         return (
           <div className="flex items-center gap-2">
-            <Progress value={row.original.disciplineProgress} className="w-[80%]" />
-            <span className="text-xs text-muted-foreground">{row.original.disciplineProgress.toFixed(0)}%</span>
+            <div className="w-[60%] relative">
+              <Progress value={disciplineProgress} className="h-5" />
+              <span className="absolute inset-0 flex items-center justify-center text-xs font-medium text-primary-foreground">
+                {actualRecorded}/{totalUnits}
+              </span>
+            </div>
             {row.original.allRecordingsDone && isFirstInDiscipline && (
               <>
                 <Tooltip>
