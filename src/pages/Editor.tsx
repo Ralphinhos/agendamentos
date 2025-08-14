@@ -69,39 +69,45 @@ const Editor = () => {
 
   const data = useMemo<BookingWithProgress[]>(() => {
     if (!bookings) return [];
-    const progressMap: Record<string, { totalUnits: number; actualRecorded: number }> = {};
 
     const activeBookings = bookings.filter(b => b.teacherConfirmation !== 'NEGADO' && !b.editorCancelled);
 
+    // Group bookings by discipline
+    const bookingsByDiscipline: Record<string, Booking[]> = {};
     activeBookings.forEach(b => {
-      if (!b.discipline || !b.totalUnits) return;
-      if (!progressMap[b.discipline]) {
-        progressMap[b.discipline] = { totalUnits: b.totalUnits, actualRecorded: 0 };
-      }
-      if (b.status !== 'concluída') {
-        const unitsToAdd = b.lessonsRecorded ?? 0;
-        progressMap[b.discipline].actualRecorded += unitsToAdd;
-      }
-    });
-
-    // A second pass for completed ones to ensure the total is right
-    activeBookings.forEach(b => {
-        if (b.discipline && progressMap[b.discipline] && b.status === 'concluída') {
-             progressMap[b.discipline].actualRecorded += b.lessonsRecorded ?? 0;
+        if (!b.discipline) return;
+        if (!bookingsByDiscipline[b.discipline]) {
+            bookingsByDiscipline[b.discipline] = [];
         }
-    })
-
-
-    return activeBookings.map(b => {
-      const progress = progressMap[b.discipline] || { totalUnits: 0, actualRecorded: 0 };
-      const totalRecordedForDiscipline = progress.actualRecorded;
-      const percentage = progress.totalUnits > 0 ? (totalRecordedForDiscipline / progress.totalUnits) * 100 : 0;
-      return {
-        ...b,
-        disciplineProgress: Math.min(percentage, 100),
-        actualRecorded: totalRecordedForDiscipline,
-      };
+        bookingsByDiscipline[b.discipline].push(b);
     });
+
+    const processedBookings: BookingWithProgress[] = [];
+
+    for (const disciplineName in bookingsByDiscipline) {
+        const disciplineBookings = bookingsByDiscipline[disciplineName];
+
+        // Sort by date to calculate running total correctly
+        disciplineBookings.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+        let runningTotal = 0;
+        const totalUnits = disciplineBookings[0]?.totalUnits || 0;
+
+        disciplineBookings.forEach(b => {
+            runningTotal += b.lessonsRecorded ?? 0;
+            const percentage = totalUnits > 0 ? (runningTotal / totalUnits) * 100 : 0;
+
+            processedBookings.push({
+                ...b,
+                disciplineProgress: Math.min(percentage, 100),
+                actualRecorded: runningTotal, // This is now a running total for this specific point in time
+                totalUnits: totalUnits,
+            });
+        });
+    }
+
+    // We need to re-sort the final array by date as the grouping messed up the original order
+    return processedBookings.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   }, [bookings]);
 
   const handleStatusChange = (id: string, currentStatus: EditingStatus) => {
