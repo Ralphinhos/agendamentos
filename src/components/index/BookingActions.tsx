@@ -14,6 +14,7 @@ import { Booking } from "@/context/BookingsContext";
 import { useRemoveBooking } from "@/hooks/api/useRemoveBooking";
 import { Link2, Send, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { EditBookingDialog } from "./EditBookingDialog";
 
 interface BookingActionsProps {
   booking: Booking;
@@ -58,6 +59,7 @@ export function BookingActions({ booking }: BookingActionsProps) {
       >
         <Send className="h-4 w-4" />
       </Button>
+      <EditBookingDialog booking={booking} />
       <AlertDialog>
         <AlertDialogTrigger asChild>
           <Button
