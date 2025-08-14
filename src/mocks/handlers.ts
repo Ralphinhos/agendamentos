@@ -6,6 +6,19 @@ import { Booking } from '@/context/BookingsContext'
 const API_PREFIX = '/api'
 
 export const handlers = [
+  // Get a single booking by ID
+  http.get(`${API_PREFIX}/bookings/:id`, ({ params }) => {
+    const { id } = params
+    if (typeof id !== 'string') {
+      return new HttpResponse(null, { status: 400 })
+    }
+    const booking = db.getBookingById(id)
+    if (!booking) {
+      return new HttpResponse(null, { status: 404 })
+    }
+    return HttpResponse.json(booking)
+  }),
+
   // Get all bookings
   http.get(`${API_PREFIX}/bookings`, () => {
     return HttpResponse.json(db.getAllBookings())

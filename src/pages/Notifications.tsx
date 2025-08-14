@@ -46,10 +46,11 @@ const NotificationsPage = () => {
       }
       // Editor cancellation notifications
       if (b.editorCancelled) {
-         notifications.push({
+        notifications.push({
           ...b,
           notificationType: 'cancellation-editor',
-          isNew: user?.role === 'admin' ? !b.editorCancellationRead : false, // Editor doesn't get notified of their own cancellation
+          // Editor gets a notification if their 'read' flag is false. Admin is not notified of this.
+          isNew: user?.role === 'editor' ? !b.cancellationReadByEditor : false,
         });
       }
       // Upload notifications
@@ -75,9 +76,11 @@ const NotificationsPage = () => {
         let patch = {};
         if (n.notificationType === 'upload') {
           patch = { uploadNotificationRead: true };
-        } else if (n.notificationType === 'cancellation-teacher') {
+        } else if (n.notificationType === 'cancellation-teacher' || (n.notificationType === 'cancellation-editor' && user?.role === 'editor')) {
           patch = user?.role === 'admin' ? { cancellationRead: true } : { cancellationReadByEditor: true };
         } else if (n.notificationType === 'cancellation-editor' && user?.role === 'admin') {
+          // This case might be for when an editor cancels, and the admin needs to be notified.
+          // For now, the logic is unchanged as it's out of the current scope.
           patch = { editorCancellationRead: true };
         }
 
