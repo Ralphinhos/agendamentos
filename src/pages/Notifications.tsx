@@ -12,34 +12,91 @@ import { useMemo, useEffect } from "react";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload, XCircle } from "lucide-react";
+import { Upload, XCircle, Circle } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { useUpdateBooking } from "@/hooks/api/useUpdateBooking";
+import { cn } from "@/lib/utils";
+import { Booking } from "@/context/BookingsContext";
+
+type NotificationType = 'cancellation-teacher' | 'cancellation-editor' | 'upload';
+
+interface Notification extends Booking {
+  notificationType: NotificationType;
+  isNew: boolean;
+}
 
 const NotificationsPage = () => {
-  const { bookings, updateBooking } = useBookings();
+  const { bookings } = useBookings();
+  const { user } = useAuth();
+  const updateBookingMutation = useUpdateBooking();
 
-  const cancellations = useMemo(() => {
-    return bookings
-      .filter(b => b.teacherConfirmation === "NEGADO")
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [bookings]);
+  const allNotifications = useMemo<Notification[]>(() => {
+    if (!bookings) return [];
 
-  const uploads = useMemo(() => {
-    return bookings
-      .filter(b => b.uploadCompleted)
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [bookings]);
+    const notifications: Notification[] = [];
 
-  // Marcar notificações de upload como lidas ao visitar a página
-  useEffect(() => {
-    uploads.forEach(b => {
-      if (!b.uploadNotificationRead) {
-        updateBooking(b.id, { uploadNotificationRead: true });
+    bookings.forEach(b => {
+      // Teacher cancellation notifications
+      if (b.teacherConfirmation === "NEGADO") {
+        notifications.push({
+          ...b,
+          notificationType: 'cancellation-teacher',
+          isNew: user?.role === 'admin' ? !b.cancellationRead : !b.cancellationReadByEditor,
+        });
+      }
+      // Editor cancellation notifications
+      if (b.editorCancelled) {
+         notifications.push({
+          ...b,
+          notificationType: 'cancellation-editor',
+          isNew: user?.role === 'admin' ? !b.editorCancellationRead : false, // Editor doesn't get notified of their own cancellation
+        });
+      }
+      // Upload notifications
+      if (b.uploadCompleted) {
+        notifications.push({
+          ...b,
+          notificationType: 'upload',
+          isNew: !b.uploadNotificationRead,
+        });
       }
     });
-    // A dependência `updateBooking` é estável, `uploads` é o que importa
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [uploads]);
 
+    // Remove duplicates and sort by date
+    const uniqueNotifications = Array.from(new Map(notifications.map(n => [n.id + n.notificationType, n])).values());
+    return uniqueNotifications.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  }, [bookings, user?.role]);
+
+  // Mark notifications as read when the component mounts
+  useEffect(() => {
+    allNotifications.forEach(n => {
+      if (n.isNew) {
+        let patch = {};
+        if (n.notificationType === 'upload') {
+          patch = { uploadNotificationRead: true };
+        } else if (n.notificationType === 'cancellation-teacher') {
+          patch = user?.role === 'admin' ? { cancellationRead: true } : { cancellationReadByEditor: true };
+        } else if (n.notificationType === 'cancellation-editor' && user?.role === 'admin') {
+          patch = { editorCancellationRead: true };
+        }
+
+        if(Object.keys(patch).length > 0) {
+          updateBookingMutation.mutate({ id: n.id, patch });
+        }
+      }
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allNotifications, user?.role]); // We only want this to run once on mount when notifications are loaded.
+
+  const uploads = allNotifications.filter(n => n.notificationType === 'upload');
+  const cancellations = allNotifications.filter(n => n.notificationType.startsWith('cancellation'));
+
+  const renderCancellationReason = (b: Notification) => {
+    if (b.notificationType === 'cancellation-teacher') return `Docente ${b.teacher} negou. Motivo: "${b.cancellationReason || 'N/A'}"`;
+    if (b.notificationType === 'cancellation-editor') return `Editor cancelou. Motivo: "${b.cancellationReason || 'N/A'}"`;
+    return `Cancelado pelo admin. Motivo: "${b.cancellationReason || 'N/A'}"`
+  }
 
   return (
     <main className="max-w-7xl mx-auto px-4 py-8">
@@ -50,7 +107,7 @@ const NotificationsPage = () => {
       <div className="mb-8">
         <h1 className="text-3xl font-bold">Histórico de Notificações</h1>
         <p className="text-muted-foreground mt-2">
-          Visualize cancelamentos e uploads concluídos.
+          Visualize cancelamentos e uploads concluídos. Notificações novas são marcadas com um ponto azul.
         </p>
       </div>
 
@@ -70,6 +127,7 @@ const NotificationsPage = () => {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-8"></TableHead>
                   <TableHead>Data da Gravação</TableHead>
                   <TableHead>Disciplina</TableHead>
                   <TableHead>Status</TableHead>
@@ -78,7 +136,8 @@ const NotificationsPage = () => {
               <TableBody>
                 {uploads.length > 0 ? (
                   uploads.map((b) => (
-                    <TableRow key={b.id}>
+                    <TableRow key={b.id} className={cn(!b.isNew && "text-muted-foreground")}>
+                      <TableCell>{b.isNew && <Circle className="h-2 w-2 text-blue-500 fill-current" />}</TableCell>
                       <TableCell>{format(new Date(b.date.replace(/-/g, '/')), "dd/MM/yyyy")}</TableCell>
                       <TableCell>{b.discipline}</TableCell>
                       <TableCell><Badge variant="secondary">Upload Entregue</Badge></TableCell>
@@ -86,7 +145,7 @@ const NotificationsPage = () => {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={3} className="text-center h-24">
+                    <TableCell colSpan={4} className="text-center h-24">
                       Nenhum upload concluído.
                     </TableCell>
                   </TableRow>
@@ -100,21 +159,21 @@ const NotificationsPage = () => {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-8"></TableHead>
                   <TableHead>Data do Agendamento</TableHead>
-                  <TableHead>Docente</TableHead>
                   <TableHead>Disciplina</TableHead>
-                  <TableHead>Motivo do Cancelamento</TableHead>
+                  <TableHead>Detalhes</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {cancellations.length > 0 ? (
                   cancellations.map((b) => (
-                    <TableRow key={b.id}>
+                    <TableRow key={b.id + b.notificationType} className={cn(!b.isNew && "text-muted-foreground")}>
+                      <TableCell>{b.isNew && <Circle className="h-2 w-2 text-blue-500 fill-current" />}</TableCell>
                       <TableCell>{format(new Date(b.date.replace(/-/g, '/')), "dd/MM/yyyy")}</TableCell>
-                      <TableCell>{b.teacher}</TableCell>
                       <TableCell>{b.discipline}</TableCell>
-                      <TableCell className="italic text-muted-foreground">
-                        "{b.cancellationReason || "Nenhum motivo informado."}"
+                      <TableCell className="italic">
+                        {renderCancellationReason(b)}
                       </TableCell>
                     </TableRow>
                   ))
