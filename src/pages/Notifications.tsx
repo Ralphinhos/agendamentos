@@ -56,7 +56,7 @@ const NotificationsPage = () => {
       if (b.status === 'cancelado' && b.cancellationReason === 'Cancelado pelo Administrador') {
         notifications.push({
           ...b,
-          notificationType: 'cancellation-editor',
+          notificationType: 'cancellation-editor', // Re-use type for simplicity
           isNew: user?.role === 'editor' ? !b.cancellationReadByEditor : false,
         });
       }
