@@ -26,6 +26,8 @@ export function EditBookingDialog({ booking }: EditBookingDialogProps) {
     teacher: booking.teacher,
     course: booking.course,
     discipline: booking.discipline,
+    totalUnits: booking.totalUnits ?? 8,
+    recordedUnits: booking.recordedUnits ?? 4,
   });
 
   const submit = () => {
@@ -41,6 +43,8 @@ export function EditBookingDialog({ booking }: EditBookingDialogProps) {
           teacher: form.teacher,
           course: form.course,
           discipline: form.discipline,
+          totalUnits: form.totalUnits,
+          recordedUnits: form.recordedUnits,
         },
       },
       {
@@ -87,6 +91,14 @@ export function EditBookingDialog({ booking }: EditBookingDialogProps) {
           <div className="grid items-center gap-4">
             <Label htmlFor="discipline">Disciplina</Label>
             <Input id="discipline" value={form.discipline} onChange={(e) => setForm({ ...form, discipline: e.target.value })} placeholder="Ex: Marketing I" />
+          </div>
+          <div className="grid items-center gap-4">
+            <Label htmlFor="totalUnits">Total de Unidades da Disciplina</Label>
+            <Input id="totalUnits" type="number" value={form.totalUnits} onChange={(e) => setForm({ ...form, totalUnits: Number(e.target.value) })} />
+          </div>
+          <div className="grid items-center gap-4">
+            <Label htmlFor="recordedUnits">Aulas a Serem Gravadas</Label>
+            <Input id="recordedUnits" type="number" value={form.recordedUnits} onChange={(e) => setForm({ ...form, recordedUnits: Number(e.target.value) })} />
           </div>
         </div>
         <div className="flex justify-end gap-2">

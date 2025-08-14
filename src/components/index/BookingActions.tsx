@@ -40,7 +40,7 @@ export function BookingActions({ booking }: BookingActionsProps) {
   };
 
   return (
-    <div className="flex flex-col items-center gap-1 ml-2">
+    <div className="flex flex-row items-center gap-0 ml-2">
       <Button
         variant="ghost"
         size="icon"
