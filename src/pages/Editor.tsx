@@ -75,7 +75,7 @@ const Editor = () => {
 
   const data = useMemo<BookingWithProgress[]>(() => {
     if (!bookings) return [];
-    const activeBookings = bookings.filter(b => b.teacherConfirmation !== 'NEGADO' && !b.editorCancelled);
+    const activeBookings = bookings.filter(b => b.teacherConfirmation !== 'NEGADO' && !b.editorCancelled && b.status !== 'cancelado' && b.status !== 'concluída');
     const bookingsByDiscipline: Record<string, Booking[]> = {};
     activeBookings.forEach(b => {
         if (!b.discipline) return;
@@ -106,7 +106,19 @@ const Editor = () => {
 
   // Handlers... (omitted for brevity, they are unchanged)
   const handleStatusChange = (id: string, currentStatus: EditingStatus) => {
-    updateBookingMutation.mutate({ id, patch: { status: nextStatus[currentStatus] }});
+    const newStatus = nextStatus[currentStatus];
+    updateBookingMutation.mutate({ id, patch: { status: newStatus } }, {
+      onSuccess: (_, variables) => {
+        if (variables.patch.status === 'concluída') {
+          toast.info("Agendamento marcado como concluído.", {
+            action: {
+              label: "Desfazer",
+              onClick: () => updateBookingMutation.mutate({ id: variables.id, patch: { status: 'em-andamento' } }),
+            },
+          });
+        }
+      }
+    });
   };
   const handleSaveDetails = (data: Partial<Booking>) => {
     if (!editingBookingId) return;
@@ -183,9 +195,7 @@ const Editor = () => {
   ];
 
   // Data sources for the three tables
-  // Bookings with 'concluída' status are considered part of "in progress" until the entire discipline is marked as complete.
-  // They should not appear in the daily schedule as they require no further action for that day.
-  const dailyScheduleData = useMemo(() => data ? data.filter(b => b.status !== 'concluída' && !b.completionDate && !b.editorCancelled) : [], [data]);
+  const dailyScheduleData = useMemo(() => data ? data.filter(b => !b.completionDate) : [], [data]);
   const completedData = useMemo(() => {
     if (!data) return [];
     const uniqueDisciplines: Record<string, BookingWithProgress> = {};

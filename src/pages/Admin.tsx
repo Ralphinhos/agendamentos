@@ -11,20 +11,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { useState, useMemo } from "react";
-import { useUpdateBooking } from "@/hooks/api/useUpdateBooking";
 import { EditingStatus } from "@/context/BookingsContext";
 import {
   ColumnDef,
@@ -36,7 +24,7 @@ import {
   flexRender,
 } from "@tanstack/react-table";
 import { Progress } from "@/components/ui/progress";
-import { CalendarClock, ListChecks, CheckCircle, FileText, Trash2 } from "lucide-react";
+import { CalendarClock, ListChecks, CheckCircle, FileText } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
@@ -48,21 +36,10 @@ const statusColors: Record<EditingStatus, string> = {
 
 const Admin = () => {
   const { bookings } = useBookings();
-  const { mutate: updateBooking } = useUpdateBooking();
   const [sorting, setSorting] = useState<SortingState>([]);
   const [inProgressSorting, setInProgressSorting] = useState<SortingState>([]);
   const [completedSorting, setCompletedSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
-
-  const handleCancelBooking = (bookingId: string) => {
-    updateBooking({
-      id: bookingId,
-      patch: {
-        editorCancelled: true,
-        cancellationReadByEditor: false,
-      },
-    });
-  };
 
   const data = useMemo<BookingWithProgress[]>(() => {
     if (!bookings) return [];
@@ -90,7 +67,7 @@ const Admin = () => {
   }, [bookings]);
 
   // Data sources for the three tables
-  const dailyScheduleData = useMemo(() => data.filter(b => b.status !== 'concluída' && !b.completionDate && !b.editorCancelled), [data]);
+  const dailyScheduleData = useMemo(() => data.filter(b => !b.completionDate), [data]);
   const completedData = useMemo(() => {
     const uniqueDisciplines: Record<string, BookingWithProgress> = {};
     data.forEach(b => {
@@ -120,52 +97,9 @@ const Admin = () => {
     { accessorKey: "course", header: "Curso" },
     { accessorKey: "discipline", header: "Disciplina" },
     { accessorKey: "status", header: "Status Edição", cell: ({ row }) => <Badge className={cn("text-white", statusColors[row.original.status])}>{row.original.status}</Badge> },
-    {
-      id: 'actions', header: "Ações", cell: ({ row }) => {
-        const booking = row.original;
-        return (
-          <div className="flex items-center gap-2">
-            {booking.editorNotes && (
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button variant="ghost" size="icon" title="Ver Observações">
-                    <FileText className="h-4 w-4" />
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader><DialogTitle>Observações do Editor</DialogTitle></DialogHeader>
-                  <div className="py-4"><p className="text-sm text-muted-foreground">{booking.editorNotes}</p></div>
-                </DialogContent>
-              </Dialog>
-            )}
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-600" title="Cancelar Agendamento">
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Confirmar Cancelamento</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Tem certeza que deseja cancelar o agendamento de {booking.discipline} com o docente {booking.teacher} no dia {format(new Date(booking.date.replace(/-/g, '/')), "dd/MM/yyyy")}? Esta ação não pode ser desfeita.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Voltar</AlertDialogCancel>
-                  <AlertDialogAction
-                    className="bg-red-500 hover:bg-red-600"
-                    onClick={() => handleCancelBooking(booking.id)}
-                  >
-                    Confirmar Cancelamento
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
-        )
-      }
-    },
+    { id: 'actions', header: "Ações", cell: ({ row }) => row.original.editorNotes ? (
+        <Dialog><DialogTrigger asChild><Button variant="ghost" size="icon" title="Ver Observações"><FileText className="h-4 w-4" /></Button></DialogTrigger><DialogContent><DialogHeader><DialogTitle>Observações do Editor</DialogTitle></DialogHeader><div className="py-4"><p className="text-sm text-muted-foreground">{row.original.editorNotes}</p></div></DialogContent></Dialog>
+    ) : null },
   ];
   const inProgressCols: ColumnDef<BookingWithProgress>[] = [
     { accessorKey: "discipline", header: "Disciplina" },
