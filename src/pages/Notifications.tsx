@@ -18,7 +18,7 @@ import { useUpdateBooking } from "@/hooks/api/useUpdateBooking";
 import { cn } from "@/lib/utils";
 import { Booking } from "@/context/BookingsContext";
 
-type NotificationType = 'cancellation-teacher' | 'cancellation-editor' | 'upload';
+type NotificationType = 'cancellation-teacher' | 'cancellation-editor' | 'cancellation-admin' | 'upload';
 
 interface Notification extends Booking {
   notificationType: NotificationType;
@@ -52,6 +52,14 @@ const NotificationsPage = () => {
           isNew: user?.role === 'admin' ? !b.editorCancellationRead : false, // Editor doesn't get notified of their own cancellation
         });
       }
+      // Admin cancellation notifications
+      if (b.status === 'cancelado' && !b.editorCancelled && b.teacherConfirmation !== 'NEGADO') {
+        notifications.push({
+          ...b,
+          notificationType: 'cancellation-admin',
+          isNew: user?.role === 'editor' ? !b.cancellationReadByEditor : false,
+        });
+      }
       // Upload notifications
       if (b.uploadCompleted) {
         notifications.push({
@@ -75,7 +83,7 @@ const NotificationsPage = () => {
         let patch = {};
         if (n.notificationType === 'upload') {
           patch = { uploadNotificationRead: true };
-        } else if (n.notificationType === 'cancellation-teacher') {
+        } else if (n.notificationType === 'cancellation-teacher' || n.notificationType === 'cancellation-admin') {
           patch = user?.role === 'admin' ? { cancellationRead: true } : { cancellationReadByEditor: true };
         } else if (n.notificationType === 'cancellation-editor' && user?.role === 'admin') {
           patch = { editorCancellationRead: true };
@@ -95,7 +103,8 @@ const NotificationsPage = () => {
   const renderCancellationReason = (b: Notification) => {
     if (b.notificationType === 'cancellation-teacher') return `Docente ${b.teacher} negou. Motivo: "${b.cancellationReason || 'N/A'}"`;
     if (b.notificationType === 'cancellation-editor') return `Editor cancelou. Motivo: "${b.cancellationReason || 'N/A'}"`;
-    return `Cancelado pelo admin. Motivo: "${b.cancellationReason || 'N/A'}"`
+    if (b.notificationType === 'cancellation-admin') return `Admin cancelou. Motivo: "${b.cancellationReason || 'N/A'}"`;
+    return `Cancelado. Motivo: "${b.cancellationReason || 'N/A'}"`
   }
 
   return (

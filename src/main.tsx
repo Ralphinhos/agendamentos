@@ -12,7 +12,14 @@ async function enableMocking() {
   // `worker.start()` returns a Promise that resolves
   // once the Service Worker is up and running.
   return worker.start({
-    onUnhandledRequest: 'bypass',
+    onUnhandledRequest(req, print) {
+      // Don't warn about unhandled requests to assets or other pages.
+      // This is essential to prevent MSW from interfering with React Router's
+      // client-side navigation.
+      if (req.url.pathname.startsWith('/api')) {
+        print.warning()
+      }
+    },
   })
 }
 
