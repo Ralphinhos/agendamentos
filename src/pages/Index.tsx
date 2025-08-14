@@ -2,7 +2,7 @@ import { Helmet } from "react-helmet-async";
 import { useEffect, useState, useMemo } from "react";
 import { Calendar } from "@/components/ui/calendar";
 import { useBookings } from "@/context/BookingsContext";
-import { format, isSameDay } from "date-fns";
+import { format, isSameDay, getDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Loader2 } from "lucide-react";
 import { TimeSlotItem } from "@/components/index/TimeSlotItem";
@@ -13,15 +13,34 @@ interface Holiday {
   type: string;
 }
 
-const timeSlots = [
-  { period: "MANHÃ" as const, start: "09:00", end: "12:00" },
-  { period: "TARDE" as const, start: "13:30", end: "17:30" },
+const allTimeSlots = [
+  { period: "08:30-10:00", start: "08:30", end: "10:00" },
+  { period: "10:00-11:30", start: "10:00", end: "11:30" },
+  { period: "13:30-15:00", start: "13:30", end: "15:00" },
+  { period: "15:00-16:30", start: "15:00", end: "16:30" },
+  { period: "16:30-17:30", start: "16:30", end: "17:30" },
 ];
+
+const fridayTimeSlots = [
+  { period: "13:30-15:00", start: "13:30", end: "15:00" },
+  { period: "15:00-16:30", start: "15:00", end: "16:30" },
+  { period: "16:30-17:30", start: "16:30", end: "17:30" },
+];
+
 
 function Index() {
   const { bookings, isLoading: isLoadingBookings } = useBookings();
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [holidays, setHolidays] = useState<Holiday[]>([]);
+
+  const availableTimeSlots = useMemo(() => {
+    if (!date) return [];
+    const dayOfWeek = getDay(date); // Sunday = 0, Monday = 1, ..., Friday = 5
+    if (dayOfWeek === 5) { // It's Friday
+      return fridayTimeSlots;
+    }
+    return allTimeSlots;
+  }, [date]);
 
   const bookedDays = useMemo(() => {
     if (!bookings) return [];
@@ -126,7 +145,7 @@ function Index() {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {timeSlots.map((slot) => (
+                    {availableTimeSlots.map((slot) => (
                       <TimeSlotItem key={slot.period} slot={slot} date={date} />
                     ))}
                   </div>
