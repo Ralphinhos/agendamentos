@@ -61,3 +61,17 @@ export const removeBookingAPI = async (id: string): Promise<void> => {
   });
   await handleResponse<void>(response);
 };
+
+/**
+ * Updates all bookings for a given discipline.
+ */
+export const updateDisciplineAPI = async (disciplineName: string, patch: Partial<Booking>): Promise<void> => {
+  const response = await fetch(`${API_BASE_URL}/disciplines/${encodeURIComponent(disciplineName)}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(patch),
+  });
+  await handleResponse<void>(response);
+};

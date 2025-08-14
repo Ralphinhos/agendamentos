@@ -74,4 +74,19 @@ export const handlers = [
       { status: 401, headers: { 'Content-Type': 'application/json' } }
     )
   }),
+
+  // Handle bulk update for a discipline
+  http.patch(`${API_PREFIX}/disciplines/:disciplineName`, async ({ request, params }) => {
+    const { disciplineName } = params;
+    const patch = await request.json() as Partial<Booking>;
+
+    if (typeof disciplineName !== 'string') {
+      return new HttpResponse(null, { status: 400 });
+    }
+
+    const decodedDisciplineName = decodeURIComponent(disciplineName);
+    db.updateBookingsByDiscipline(decodedDisciplineName, patch);
+
+    return new HttpResponse(null, { status: 204 });
+  }),
 ]

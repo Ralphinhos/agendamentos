@@ -72,4 +72,19 @@ export const db = {
     bookings.splice(index, 1);
     return true;
   },
+  updateBookingsByDiscipline: (disciplineName: string, patch: Partial<Booking>) => {
+    const updatedBookings = bookings.map(b => {
+      if (b.discipline === disciplineName) {
+        // Handle special case for reverting completion by removing a property
+        if ('completionDate' in patch && patch.completionDate === undefined) {
+          const { completionDate, ...rest } = b;
+          return { ...rest, ...patch };
+        }
+        return { ...b, ...patch };
+      }
+      return b;
+    });
+    bookings.length = 0;
+    bookings.push(...updatedBookings);
+  },
 };
