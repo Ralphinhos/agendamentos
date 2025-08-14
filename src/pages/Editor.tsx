@@ -176,6 +176,7 @@ const Editor = () => {
       header: "Horário",
       cell: ({ row }) => `${row.original.start} - ${row.original.end}`,
     },
+    { accessorKey: "teacher", header: "Docente" },
     { accessorKey: "course", header: "Curso" },
     { accessorKey: "discipline", header: "Disciplina" },
     { accessorKey: "lessonsRecorded", header: "Aulas Gravadas" },
