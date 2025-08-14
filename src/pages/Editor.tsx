@@ -280,7 +280,12 @@ const Editor = () => {
           </TabsContent>
 
           <TabsContent value="completed">
-            <CompletedDisciplinesTable table={completedTable} columns={completedTable.options.columns} />
+            <div className="rounded-lg border bg-card mt-4">
+                <Table>
+                    <TableHeader>{completedTable.getHeaderGroups().map(hg => <TableRow key={hg.id}>{hg.headers.map(h => <TableHead key={h.id}>{flexRender(h.column.columnDef.header, h.getContext())}</TableHead>)}</TableRow>)}</TableHeader>
+                    <TableBody>{completedTable.getRowModel().rows.length > 0 ? completedTable.getRowModel().rows.map(row => <TableRow key={row.id}>{row.getVisibleCells().map(cell => <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>)}</TableRow>) : <TableRow><TableCell colSpan={completedTable.getAllColumns().length} className="h-24 text-center">Nenhuma disciplina concluída.</TableCell></TableRow>}</TableBody>
+                </Table>
+            </div>
           </TabsContent>
         </Tabs>
       </main>
