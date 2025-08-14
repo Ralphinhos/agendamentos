@@ -103,9 +103,9 @@ const Header = () => {
                       const isEditorCancellation = b.editorCancelled && !b.editorCancellationRead;
 
                       const handleSelect = () => {
-                        if (isUpload) updateBookingMutation.mutate({ id: b.id, uploadNotificationRead: true });
-                        if (isTeacherCancellation) updateBookingMutation.mutate({ id: b.id, cancellationRead: true });
-                        if (isEditorCancellation) updateBookingMutation.mutate({ id: b.id, editorCancellationRead: true });
+                        if (isUpload) updateBookingMutation.mutate({ id: b.id, patch: { uploadNotificationRead: true } });
+                        if (isTeacherCancellation) updateBookingMutation.mutate({ id: b.id, patch: { cancellationRead: true } });
+                        if (isEditorCancellation) updateBookingMutation.mutate({ id: b.id, patch: { editorCancellationRead: true } });
                       }
 
                       return (
@@ -178,8 +178,8 @@ const Header = () => {
                       const isCancellation = (b.teacherConfirmation === "NEGADO" || b.status === "cancelado") && !b.cancellationReadByEditor;
 
                       const handleSelect = () => {
-                        if (isUpload) updateBookingMutation.mutate({ id: b.id, uploadNotificationRead: true });
-                        if (isCancellation) updateBookingMutation.mutate({ id: b.id, cancellationReadByEditor: true });
+                        if (isUpload) updateBookingMutation.mutate({ id: b.id, patch: { uploadNotificationRead: true } });
+                        if (isCancellation) updateBookingMutation.mutate({ id: b.id, patch: { cancellationReadByEditor: true } });
                       };
 
                       return (
