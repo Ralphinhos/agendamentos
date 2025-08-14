@@ -9,12 +9,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Booking } from "@/context/BookingsContext";
+import { BookingWithProgress } from "@/context/BookingsContext";
 import { useState } from "react";
+import { toast } from "sonner";
 
 interface EditDetailsDialogProps {
-  booking: Booking;
-  onSave: (data: Partial<Booking>) => void;
+  booking: BookingWithProgress;
+  onSave: (data: Partial<BookingWithProgress>) => void;
 }
 
 export function EditDetailsDialog({ booking, onSave }: EditDetailsDialogProps) {
@@ -24,6 +25,23 @@ export function EditDetailsDialog({ booking, onSave }: EditDetailsDialogProps) {
   });
 
   const handleSave = () => {
+    const { totalUnits, actualRecorded } = booking;
+    const originalLessonsForThisBooking = booking.lessonsRecorded ?? 0;
+
+    // The total recorded by OTHER bookings is the cumulative total minus this booking's original contribution.
+    const lessonsRecordedByOthers = actualRecorded - originalLessonsForThisBooking;
+
+    // The maximum number of lessons the user can record in this session is the total for the discipline
+    // minus what has already been recorded by other bookings.
+    const maxLessonsAllowed = totalUnits - lessonsRecordedByOthers;
+
+    if (formData.lessonsRecorded > maxLessonsAllowed) {
+      toast.error("Limite de aulas excedido", {
+        description: `Você está tentando gravar ${formData.lessonsRecorded} aulas, mas o limite para este agendamento é de ${maxLessonsAllowed} para não ultrapassar o total de ${totalUnits} da disciplina.`,
+      });
+      return;
+    }
+
     onSave(formData);
   };
 
