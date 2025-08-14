@@ -13,7 +13,7 @@ export interface Booking {
   id: string;
   date: string; // YYYY-MM-DD
   weekday: string;
-  period: "MANHÃ" | "TARDE";
+  period: string; // "HH:mm-HH:mm"
   start: string; // HH:mm
   end: string; // HH:mm
   course: string;
@@ -63,8 +63,8 @@ export const BookingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     queryFn: fetchBookings,
   });
 
-  const getBySlot = useCallback((date: string, period: Booking["period"]) =>
-    bookings.find((b) => b.date === date && b.period === period && b.teacherConfirmation !== 'NEGADO'),
+  const getBySlot = useCallback((date: string, period: string) =>
+    bookings.find((b) => b.date === date && b.period === period && b.teacherConfirmation !== 'NEGADO' && b.status !== 'cancelado'),
     [bookings]
   );
 

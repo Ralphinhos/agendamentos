@@ -4,7 +4,7 @@ import { BookingActions } from "./BookingActions";
 import { BookingDialog } from "./BookingDialog";
 
 interface TimeSlotItemProps {
-  slot: { period: "MANHÃ" | "TARDE"; start: string; end: string };
+  slot: { period: string; start: string; end: string; label: string };
   date: Date;
 }
 
@@ -20,7 +20,7 @@ export function TimeSlotItem({ slot, date }: TimeSlotItemProps) {
   return (
     <div className="flex items-end justify-between rounded-md border p-3">
       <div className="flex-1">
-        <div className="text-xs text-muted-foreground">{slot.period}</div>
+        <div className="text-xs text-muted-foreground">{slot.label}</div>
         <div className="font-medium">
           {slot.start} – {slot.end}
         </div>
