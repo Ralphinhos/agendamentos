@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Booking } from "@/context/BookingsContext";
-import { useRemoveBooking } from "@/hooks/api/useRemoveBooking";
+import { useUpdateBooking } from "@/hooks/api/useUpdateBooking";
 import { Link2, Send, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { EditBookingDialog } from "./EditBookingDialog";
@@ -21,7 +21,7 @@ interface BookingActionsProps {
 }
 
 export function BookingActions({ booking }: BookingActionsProps) {
-  const removeBookingMutation = useRemoveBooking();
+  const updateBookingMutation = useUpdateBooking();
   const confirmationLink = `${window.location.origin}/confirmacao/${booking.id}`;
 
   const copyLink = () => {
@@ -36,6 +36,21 @@ export function BookingActions({ booking }: BookingActionsProps) {
     console.log("------------------------------------");
     toast.info("Simulação de WhatsApp", {
       description: "A mensagem foi registrada no console.",
+    });
+  };
+
+  const handleCancelBooking = () => {
+    updateBookingMutation.mutate({
+      id: booking.id,
+      patch: {
+        status: 'cancelado',
+        cancellationReason: 'Cancelado pelo Administrador',
+        cancellationReadByEditor: false, // Ensure editor gets a notification
+      }
+    }, {
+      onSuccess: () => {
+        toast.success("Agendamento cancelado com sucesso.");
+      }
     });
   };
 
@@ -66,26 +81,26 @@ export function BookingActions({ booking }: BookingActionsProps) {
             variant="ghost"
             size="icon"
             className="h-8 w-8 text-red-600 hover:text-red-700"
-            title="Excluir agendamento"
+            title="Cancelar agendamento"
           >
             <Trash2 className="h-4 w-4" />
           </Button>
         </AlertDialogTrigger>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
+            <AlertDialogTitle>Tem certeza que deseja cancelar?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta ação não pode ser desfeita. Isso irá remover
-              permanentemente o agendamento.
+              Esta ação marcará o agendamento como 'cancelado' e notificará o editor.
+              Você poderá ver o agendamento no histórico.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel>Voltar</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => removeBookingMutation.mutate(booking.id)}
+              onClick={handleCancelBooking}
               className="bg-destructive hover:bg-destructive/90"
             >
-              Sim, remover
+              Sim, cancelar agendamento
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
