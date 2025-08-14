@@ -106,19 +106,7 @@ const Editor = () => {
 
   // Handlers... (omitted for brevity, they are unchanged)
   const handleStatusChange = (id: string, currentStatus: EditingStatus) => {
-    const newStatus = nextStatus[currentStatus];
-    updateBookingMutation.mutate({ id, patch: { status: newStatus } }, {
-      onSuccess: (_, variables) => {
-        if (variables.patch.status === 'concluída') {
-          toast.info("Agendamento marcado como concluído.", {
-            action: {
-              label: "Desfazer",
-              onClick: () => updateBookingMutation.mutate({ id: variables.id, patch: { status: 'em-andamento' } }),
-            },
-          });
-        }
-      }
-    });
+    updateBookingMutation.mutate({ id, patch: { status: nextStatus[currentStatus] }});
   };
   const handleSaveDetails = (data: Partial<Booking>) => {
     if (!editingBookingId) return;
@@ -195,7 +183,7 @@ const Editor = () => {
   ];
 
   // Data sources for the three tables
-  const dailyScheduleData = useMemo(() => data ? data.filter(b => !b.completionDate) : [], [data]);
+  const dailyScheduleData = useMemo(() => data ? data.filter(b => !b.completionDate && b.status !== 'concluída') : [], [data]);
   const completedData = useMemo(() => {
     if (!data) return [];
     const uniqueDisciplines: Record<string, BookingWithProgress> = {};
@@ -247,12 +235,12 @@ const Editor = () => {
     { accessorKey: "teacher", header: "Docente" },
     { accessorKey: "course", header: "Curso" },
     { accessorKey: "disciplineProgress", header: "Progresso", cell: ({ row }) => {
-        const { disciplineProgress, actualRecorded, totalUnits } = row.original;
+        const { disciplineProgress, actualRecorded, totalUnits, discipline } = row.original;
         const progressIsComplete = actualRecorded >= totalUnits;
         return (
             <div className="flex items-center gap-2"><div className="w-[60%] relative"><Progress value={disciplineProgress} className="h-5" /><span className="absolute inset-0 flex items-center justify-center text-xs font-medium text-primary-foreground">{actualRecorded}/{totalUnits}</span></div>
-            {progressIsComplete && !row.original.allRecordingsDone && <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" onClick={() => handleMarkAllRecordingsDone(row.original.discipline)}><CheckCircle2 className="h-4 w-4 text-green-600" /></Button></TooltipTrigger><TooltipContent><p>Finalizar Todas as Gravações</p></TooltipContent></Tooltip>}
-            {row.original.allRecordingsDone && <><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" onClick={() => handleReopenRecordings(row.original.discipline)}><Undo2 className="h-4 w-4 text-blue-600" /></Button></TooltipTrigger><TooltipContent><p>Reabrir Gravações</p></TooltipContent></Tooltip><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" onClick={() => handleCompleteDiscipline(row.original.discipline)}><Check className="h-4 w-4 text-green-600" /></Button></TooltipTrigger><TooltipContent><p>Concluir Disciplina</p></TooltipContent></Tooltip></>}
+            {progressIsComplete && !row.original.allRecordingsDone && <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" onClick={() => handleMarkAllRecordingsDone(discipline)}><CheckCircle2 className="h-4 w-4 text-green-600" /></Button></TooltipTrigger><TooltipContent><p>Finalizar Todas as Gravações</p></TooltipContent></Tooltip>}
+            {row.original.allRecordingsDone && <><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" onClick={() => handleReopenRecordings(discipline)}><Undo2 className="h-4 w-4 text-blue-600" /></Button></TooltipTrigger><TooltipContent><p>Reabrir Gravações</p></TooltipContent></Tooltip><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" onClick={() => handleCompleteDiscipline(discipline)}><Check className="h-4 w-4 text-green-600" /></Button></TooltipTrigger><TooltipContent><p>Concluir Disciplina</p></TooltipContent></Tooltip></>}
             </div>
         )
     }},
