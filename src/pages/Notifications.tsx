@@ -172,8 +172,10 @@ const NotificationsPage = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-8"></TableHead>
-                  <TableHead>Data do Agendamento</TableHead>
+                  <TableHead>Data</TableHead>
                   <TableHead>Disciplina</TableHead>
+                  <TableHead>Docente</TableHead>
+                  <TableHead>Curso</TableHead>
                   <TableHead>Detalhes</TableHead>
                 </TableRow>
               </TableHeader>
@@ -184,6 +186,8 @@ const NotificationsPage = () => {
                       <TableCell>{b.isNew && <Circle className="h-2 w-2 text-blue-500 fill-current" />}</TableCell>
                       <TableCell>{format(new Date(b.date.replace(/-/g, '/')), "dd/MM/yyyy")}</TableCell>
                       <TableCell>{b.discipline}</TableCell>
+                      <TableCell>{b.teacher}</TableCell>
+                      <TableCell>{b.course}</TableCell>
                       <TableCell className="italic">
                         {renderCancellationReason(b)}
                       </TableCell>
@@ -191,7 +195,7 @@ const NotificationsPage = () => {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center h-24">
+                    <TableCell colSpan={6} className="text-center h-24">
                       Nenhuma notificação de cancelamento encontrada.
                     </TableCell>
                   </TableRow>
