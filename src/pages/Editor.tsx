@@ -183,7 +183,9 @@ const Editor = () => {
   ];
 
   // Data sources for the three tables
-  const dailyScheduleData = useMemo(() => data ? data.filter(b => !b.completionDate) : [], [data]);
+  // Bookings with 'concluída' status are considered part of "in progress" until the entire discipline is marked as complete.
+  // They should not appear in the daily schedule as they require no further action for that day.
+  const dailyScheduleData = useMemo(() => data ? data.filter(b => b.status !== 'concluída' && !b.completionDate && !b.editorCancelled) : [], [data]);
   const completedData = useMemo(() => {
     if (!data) return [];
     const uniqueDisciplines: Record<string, BookingWithProgress> = {};

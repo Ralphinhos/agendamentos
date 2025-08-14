@@ -52,6 +52,10 @@ const bookings: Booking[] = [
 // In-memory database operations
 export const db = {
   getAllBookings: () => bookings,
+  getBookingById: (id: string) => {
+    const booking = bookings.find(b => b.id === id);
+    return booking || null;
+  },
   addBooking: (newBookingData: Omit<Booking, 'id'>) => {
     const newBooking: Booking = {
       id: new Date().toISOString(), // Simple unique ID
