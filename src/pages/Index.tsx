@@ -104,17 +104,26 @@ function Index() {
                   caption: "flex justify-center pt-1 relative items-center",
                   caption_label: "text-xl font-medium",
                   nav: "space-x-1 flex items-center",
-                  table: "w-full border-collapse space-y-1",
+                  table: "w-full border-collapse",
                   head_row: "flex justify-around",
                   head_cell: "text-muted-foreground rounded-md w-12 font-normal text-lg",
                   row: "flex w-full mt-2 justify-around",
-                  cell: "h-12 w-12 text-center text-lg p-0 relative [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
-                  day: "h-12 w-12 p-0 font-normal aria-selected:opacity-100 rounded-full hover:bg-accent/50 transition-colors",
-                  day_selected: "bg-primary text-primary-foreground rounded-full hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
-                  day_today: "bg-transparent border border-primary rounded-full",
+                  // 🔧 sem bg no container da célula
+                  cell:
+                    "h-12 w-12 text-center text-lg p-0 relative focus-within:relative focus-within:z-20",
+                  // dia é um círculo; hover suave
+                  day:
+                    "h-12 w-12 p-0 font-normal aria-selected:opacity-100 rounded-full hover:bg-accent/50 transition-colors",
+                  // selecionado (quando NÃO for hoje)
+                  day_selected:
+                    "bg-primary text-primary-foreground rounded-full hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
+                  // hoje (prevalece mesmo se estiver selecionado)
+                  day_today:
+                    "bg-accent text-accent-foreground rounded-full aria-selected:bg-accent aria-selected:text-accent-foreground",
                   day_outside: "text-muted-foreground opacity-50",
                   day_disabled: "text-muted-foreground opacity-50",
-                  day_range_middle: "aria-selected:bg-accent aria-selected:text-accent-foreground",
+                  day_range_middle:
+                    "aria-selected:bg-accent aria-selected:text-accent-foreground",
                   day_hidden: "invisible",
                 }}
                 locale={ptBR}
@@ -125,6 +134,8 @@ function Index() {
                 }}
                 modifiersClassNames={{
                   holiday: "text-red-500",
+                  // se quiser evitar conflito visual com hoje/selecionado,
+                  // pode trocar bg por um anel: "ring-2 ring-brand-blue text-white rounded-full"
                   booked: "bg-brand-blue text-white rounded-full",
                 }}
               />
