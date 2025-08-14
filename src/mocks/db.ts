@@ -53,32 +53,31 @@ const DB_KEY = 'bookings_db';
 
 const getBookingsFromStorage = (): Booking[] => {
   try {
-    const data = sessionStorage.getItem(DB_KEY);
+    const data = localStorage.getItem(DB_KEY);
     if (data) {
       return JSON.parse(data);
     }
   } catch (error) {
-    console.error("Failed to read from sessionStorage", error);
+    console.error("Failed to read from localStorage", error);
   }
 
-  // Se não houver nada no sessionStorage ou se falhar, inicialize com os dados mockados
   try {
-    sessionStorage.setItem(DB_KEY, JSON.stringify(initialBookings));
+    localStorage.setItem(DB_KEY, JSON.stringify(initialBookings));
   } catch (error) {
-    console.error("Failed to write to sessionStorage", error);
+    console.error("Failed to write to localStorage", error);
   }
   return initialBookings;
 };
 
 const saveBookingsToStorage = (bookings: Booking[]) => {
   try {
-    sessionStorage.setItem(DB_KEY, JSON.stringify(bookings));
+    localStorage.setItem(DB_KEY, JSON.stringify(bookings));
   } catch (error) {
-    console.error("Failed to write to sessionStorage", error);
+    console.error("Failed to write to localStorage", error);
   }
 };
 
-// Database operations that persist to sessionStorage
+// Database operations that persist to localStorage
 export const db = {
   getAllBookings: () => {
     return getBookingsFromStorage();

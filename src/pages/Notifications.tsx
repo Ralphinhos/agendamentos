@@ -53,7 +53,7 @@ const NotificationsPage = () => {
         });
       }
       // Admin cancellation from calendar
-      if (b.status === 'cancelado' && b.cancellationReason === 'Cancelado pelo Administrador') {
+      if (b.status === 'cancelado' && b.cancellationReason?.includes('Administrador')) {
         notifications.push({
           ...b,
           notificationType: 'cancellation-editor', // Re-use type for simplicity

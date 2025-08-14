@@ -24,7 +24,7 @@ import {
   flexRender,
 } from "@tanstack/react-table";
 import { Progress } from "@/components/ui/progress";
-import { CalendarClock, ListChecks, CheckCircle, FileText } from "lucide-react";
+import { CalendarClock, ListChecks, CheckCircle, FileText, XSquare } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
@@ -39,12 +39,11 @@ const Admin = () => {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [inProgressSorting, setInProgressSorting] = useState<SortingState>([]);
   const [completedSorting, setCompletedSorting] = useState<SortingState>([]);
+  const [canceledSorting, setCanceledSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
 
   const data = useMemo<BookingWithProgress[]>(() => {
     if (!bookings) return [];
-    // The data processing logic can be simpler for admin, as we don't need cumulative progress.
-    // We just need the final total for each discipline.
     const progressMap: Record<string, { totalUnits: number; actualRecorded: number }> = {};
     bookings.forEach(b => {
       if (!b.discipline || !b.totalUnits) return;
@@ -66,60 +65,48 @@ const Admin = () => {
     });
   }, [bookings]);
 
-  // Data sources for the three tables
-  const dailyScheduleData = useMemo(() => data.filter(b => !b.completionDate), [data]);
-  const completedData = useMemo(() => {
-    const uniqueDisciplines: Record<string, BookingWithProgress> = {};
-    data.forEach(b => {
-      if (b.completionDate) {
-        if (!uniqueDisciplines[b.discipline] || new Date(b.date) > new Date(uniqueDisciplines[b.discipline].date)) {
-          uniqueDisciplines[b.discipline] = b;
-        }
-      }
-    });
-    return Object.values(uniqueDisciplines);
-  }, [data]);
-  const inProgressData = useMemo(() => {
-    const disciplineSummary: Record<string, BookingWithProgress> = {};
-    const completedDisciplines = new Set(completedData.map(d => d.discipline));
-    data.forEach(booking => {
-      if (booking.discipline && !completedDisciplines.has(booking.discipline)) {
-        disciplineSummary[booking.discipline] = booking;
-      }
-    });
-    return Object.values(disciplineSummary);
-  }, [data, completedData]);
+  // Data sources for the four tabs, following user's new rules
+  const dailyScheduleData = useMemo(() => data.filter(b => (b.status === 'pendente' || b.status === 'em-andamento')), [data]);
+  const inProgressData = useMemo(() => data.filter(b => b.status === 'concluída' && !b.completionDate), [data]);
+  const completedData = useMemo(() => data.filter(b => !!b.completionDate), [data]);
+  const canceledData = useMemo(() => data.filter(b => b.status === 'cancelado'), [data]);
 
   // Column Definitions
   const dailyScheduleCols: ColumnDef<BookingWithProgress>[] = [
     { accessorKey: "date", header: "Data", cell: ({ row }) => format(new Date(row.original.date.replace(/-/g, '/')), "dd/MM/yyyy") },
     { accessorKey: "teacher", header: "Docente" },
-    { accessorKey: "course", header: "Curso" },
     { accessorKey: "discipline", header: "Disciplina" },
     { accessorKey: "status", header: "Status Edição", cell: ({ row }) => <Badge className={cn("text-white", statusColors[row.original.status])}>{row.original.status}</Badge> },
     { id: 'actions', header: "Ações", cell: ({ row }) => row.original.editorNotes ? (
         <Dialog><DialogTrigger asChild><Button variant="ghost" size="icon" title="Ver Observações"><FileText className="h-4 w-4" /></Button></DialogTrigger><DialogContent><DialogHeader><DialogTitle>Observações do Editor</DialogTitle></DialogHeader><div className="py-4"><p className="text-sm text-muted-foreground">{row.original.editorNotes}</p></div></DialogContent></Dialog>
     ) : null },
   ];
+
   const inProgressCols: ColumnDef<BookingWithProgress>[] = [
-    { accessorKey: "discipline", header: "Disciplina" },
+    { accessorKey: "date", header: "Data", cell: ({ row }) => format(new Date(row.original.date.replace(/-/g, '/')), "dd/MM/yyyy") },
     { accessorKey: "teacher", header: "Docente" },
-    { accessorKey: "course", header: "Curso" },
-    { accessorKey: "disciplineProgress", header: "Progresso", cell: ({ row }) => (
-        <div className="relative w-full"><Progress value={row.original.disciplineProgress} className="h-5" /><span className="absolute inset-0 flex items-center justify-center text-xs font-medium text-primary-foreground">{row.original.actualRecorded}/{row.original.totalUnits}</span></div>
-    )},
+    { accessorKey: "discipline", header: "Disciplina" },
+    { accessorKey: "status", header: "Status Edição", cell: ({ row }) => <Badge className={cn("text-white", statusColors[row.original.status])}>{row.original.status}</Badge> },
   ];
+
   const completedCols: ColumnDef<BookingWithProgress>[] = [
     { accessorKey: "completionDate", header: "Data de Conclusão", cell: ({ row }) => row.original.completionDate ? format(new Date(row.original.completionDate.replace(/-/g, '/')), "dd/MM/yyyy") : "N/A" },
-    { accessorKey: "course", header: "Curso" },
     { accessorKey: "discipline", header: "Disciplina" },
-    inProgressCols.find(c => c.accessorKey === 'disciplineProgress')!,
+    { accessorKey: "teacher", header: "Docente" },
+  ];
+
+  const canceledCols: ColumnDef<BookingWithProgress>[] = [
+    { accessorKey: "date", header: "Data", cell: ({ row }) => format(new Date(row.original.date.replace(/-/g, '/')), "dd/MM/yyyy") },
+    { accessorKey: "discipline", header: "Disciplina" },
+    { accessorKey: "teacher", header: "Docente" },
+    { accessorKey: "cancellationReason", header: "Motivo" },
   ];
 
   // Table Instances
   const dailyScheduleTable = useReactTable({ data: dailyScheduleData, columns: dailyScheduleCols, state: { sorting, globalFilter }, onSortingChange: setSorting, onGlobalFilterChange: setGlobalFilter, getCoreRowModel: getCoreRowModel(), getSortedRowModel: getSortedRowModel(), getFilteredRowModel: getFilteredRowModel() });
   const inProgressTable = useReactTable({ data: inProgressData, columns: inProgressCols, state: { sorting: inProgressSorting, globalFilter }, onSortingChange: setInProgressSorting, onGlobalFilterChange: setGlobalFilter, getCoreRowModel: getCoreRowModel(), getSortedRowModel: getSortedRowModel(), getFilteredRowModel: getFilteredRowModel() });
   const completedTable = useReactTable({ data: completedData, columns: completedCols, state: { sorting: completedSorting, globalFilter }, onSortingChange: setCompletedSorting, onGlobalFilterChange: setGlobalFilter, getCoreRowModel: getCoreRowModel(), getSortedRowModel: getSortedRowModel(), getFilteredRowModel: getFilteredRowModel() });
+  const canceledTable = useReactTable({ data: canceledData, columns: canceledCols, state: { sorting: canceledSorting, globalFilter }, onSortingChange: setCanceledSorting, onGlobalFilterChange: setGlobalFilter, getCoreRowModel: getCoreRowModel(), getSortedRowModel: getSortedRowModel(), getFilteredRowModel: getFilteredRowModel() });
 
   return (
     <main className="max-w-7xl mx-auto px-4 py-8">
@@ -135,19 +122,23 @@ const Admin = () => {
         <Input placeholder="Filtrar por qualquer campo..." value={globalFilter} onChange={e => setGlobalFilter(e.target.value)} className="max-w-sm" />
       </div>
       <Tabs defaultValue="daily-schedule">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="daily-schedule"><CalendarClock className="mr-2 h-4 w-4" />Agenda do Dia</TabsTrigger>
-          <TabsTrigger value="in-progress"><ListChecks className="mr-2 h-4 w-4" />Disciplinas em Andamento</TabsTrigger>
-          <TabsTrigger value="completed"><CheckCircle className="mr-2 h-4 w-4" />Disciplinas Concluídas</TabsTrigger>
+          <TabsTrigger value="in-progress"><ListChecks className="mr-2 h-4 w-4" />Edição Concluída</TabsTrigger>
+          <TabsTrigger value="completed"><CheckCircle className="mr-2 h-4 w-4" />Disciplinas Finalizadas</TabsTrigger>
+          <TabsTrigger value="canceled"><XSquare className="mr-2 h-4 w-4" />Cancelados</TabsTrigger>
         </TabsList>
         <TabsContent value="daily-schedule">
-          <div className="rounded-lg border bg-card mt-4"><Table><TableHeader>{dailyScheduleTable.getHeaderGroups().map(hg => <TableRow key={hg.id}>{hg.headers.map(h => <TableHead key={h.id} onClick={h.column.getToggleSortingHandler()}>{flexRender(h.column.columnDef.header, h.getContext())}{{ asc: ' ▲', desc: ' ▼' }[h.column.getIsSorted() as string] ?? null}</TableHead>)}</TableRow>)}</TableHeader><TableBody>{dailyScheduleTable.getRowModel().rows.length > 0 ? dailyScheduleTable.getRowModel().rows.map(row => <TableRow key={row.id}>{row.getVisibleCells().map(cell => <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>)}</TableRow>) : <TableRow><TableCell colSpan={dailyScheduleCols.length} className="h-24 text-center">Nenhum agendamento futuro.</TableCell></TableRow>}</TableBody></Table></div>
+          <div className="rounded-lg border bg-card mt-4"><Table><TableHeader>{dailyScheduleTable.getHeaderGroups().map(hg => <TableRow key={hg.id}>{hg.headers.map(h => <TableHead key={h.id} onClick={h.column.getToggleSortingHandler()}>{flexRender(h.column.columnDef.header, h.getContext())}{{ asc: ' ▲', desc: ' ▼' }[h.column.getIsSorted() as string] ?? null}</TableHead>)}</TableRow>)}</TableHeader><TableBody>{dailyScheduleTable.getRowModel().rows.length > 0 ? dailyScheduleTable.getRowModel().rows.map(row => <TableRow key={row.id}>{row.getVisibleCells().map(cell => <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>)}</TableRow>) : <TableRow><TableCell colSpan={dailyScheduleCols.length} className="h-24 text-center">Nenhum agendamento para hoje.</TableCell></TableRow>}</TableBody></Table></div>
         </TabsContent>
         <TabsContent value="in-progress">
-          <div className="rounded-lg border bg-card mt-4"><Table><TableHeader>{inProgressTable.getHeaderGroups().map(hg => <TableRow key={hg.id}>{hg.headers.map(h => <TableHead key={h.id} onClick={h.column.getToggleSortingHandler()}>{flexRender(h.column.columnDef.header, h.getContext())}{{ asc: ' ▲', desc: ' ▼' }[h.column.getIsSorted() as string] ?? null}</TableHead>)}</TableRow>)}</TableHeader><TableBody>{inProgressTable.getRowModel().rows.length > 0 ? inProgressTable.getRowModel().rows.map(row => <TableRow key={row.id}>{row.getVisibleCells().map(cell => <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>)}</TableRow>) : <TableRow><TableCell colSpan={inProgressCols.length} className="h-24 text-center">Nenhuma disciplina em andamento.</TableCell></TableRow>}</TableBody></Table></div>
+          <div className="rounded-lg border bg-card mt-4"><Table><TableHeader>{inProgressTable.getHeaderGroups().map(hg => <TableRow key={hg.id}>{hg.headers.map(h => <TableHead key={h.id} onClick={h.column.getToggleSortingHandler()}>{flexRender(h.column.columnDef.header, h.getContext())}{{ asc: ' ▲', desc: ' ▼' }[h.column.getIsSorted() as string] ?? null}</TableHead>)}</TableRow>)}</TableHeader><TableBody>{inProgressTable.getRowModel().rows.length > 0 ? inProgressTable.getRowModel().rows.map(row => <TableRow key={row.id}>{row.getVisibleCells().map(cell => <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>)}</TableRow>) : <TableRow><TableCell colSpan={inProgressCols.length} className="h-24 text-center">Nenhuma edição concluída.</TableCell></TableRow>}</TableBody></Table></div>
         </TabsContent>
         <TabsContent value="completed">
-          <div className="rounded-lg border bg-card mt-4"><Table><TableHeader>{completedTable.getHeaderGroups().map(hg => <TableRow key={hg.id}>{hg.headers.map(h => <TableHead key={h.id} onClick={h.column.getToggleSortingHandler()}>{flexRender(h.column.columnDef.header, h.getContext())}{{ asc: ' ▲', desc: ' ▼' }[h.column.getIsSorted() as string] ?? null}</TableHead>)}</TableRow>)}</TableHeader><TableBody>{completedTable.getRowModel().rows.length > 0 ? completedTable.getRowModel().rows.map(row => <TableRow key={row.id}>{row.getVisibleCells().map(cell => <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>)}</TableRow>) : <TableRow><TableCell colSpan={completedCols.length} className="h-24 text-center">Nenhuma disciplina concluída.</TableCell></TableRow>}</TableBody></Table></div>
+          <div className="rounded-lg border bg-card mt-4"><Table><TableHeader>{completedTable.getHeaderGroups().map(hg => <TableRow key={hg.id}>{hg.headers.map(h => <TableHead key={h.id} onClick={h.column.getToggleSortingHandler()}>{flexRender(h.column.columnDef.header, h.getContext())}{{ asc: ' ▲', desc: ' ▼' }[h.column.getIsSorted() as string] ?? null}</TableHead>)}</TableRow>)}</TableHeader><TableBody>{completedTable.getRowModel().rows.length > 0 ? completedTable.getRowModel().rows.map(row => <TableRow key={row.id}>{row.getVisibleCells().map(cell => <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>)}</TableRow>) : <TableRow><TableCell colSpan={completedCols.length} className="h-24 text-center">Nenhuma disciplina finalizada.</TableCell></TableRow>}</TableBody></Table></div>
+        </TabsContent>
+        <TabsContent value="canceled">
+          <div className="rounded-lg border bg-card mt-4"><Table><TableHeader>{canceledTable.getHeaderGroups().map(hg => <TableRow key={hg.id}>{hg.headers.map(h => <TableHead key={h.id} onClick={h.column.getToggleSortingHandler()}>{flexRender(h.column.columnDef.header, h.getContext())}{{ asc: ' ▲', desc: ' ▼' }[h.column.getIsSorted() as string] ?? null}</TableHead>)}</TableRow>)}</TableHeader><TableBody>{canceledTable.getRowModel().rows.length > 0 ? canceledTable.getRowModel().rows.map(row => <TableRow key={row.id}>{row.getVisibleCells().map(cell => <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>)}</TableRow>) : <TableRow><TableCell colSpan={canceledCols.length} className="h-24 text-center">Nenhum agendamento cancelado.</TableCell></TableRow>}</TableBody></Table></div>
         </TabsContent>
       </Tabs>
     </main>
