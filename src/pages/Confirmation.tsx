@@ -8,10 +8,13 @@ import { ptBR } from "date-fns/locale";
 import { useState } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { useUpdateBooking } from "@/hooks/api/useUpdateBooking";
+import { Loader2 } from "lucide-react";
 
 const Confirmation = () => {
   const { bookingId } = useParams<{ bookingId: string }>();
-  const { bookings, updateBooking } = useBookings();
+  const { bookings } = useBookings();
+  const updateBookingMutation = useUpdateBooking();
 
   // Local state to manage the immediate UI response after an action
   const [actionTaken, setActionTaken] = useState<"CONFIRMADO" | "NEGADO" | null>(null);
@@ -22,26 +25,36 @@ const Confirmation = () => {
 
   const handleConfirm = () => {
     if (!booking) return;
-    updateBooking(booking.id, { teacherConfirmation: "CONFIRMADO" });
-    setActionTaken("CONFIRMADO");
+    updateBookingMutation.mutate({
+      id: booking.id,
+      patch: { teacherConfirmation: "CONFIRMADO" }
+    }, {
+      onSuccess: () => setActionTaken("CONFIRMADO"),
+    });
   };
 
   const handleDeny = () => {
     if (!booking) return;
-    updateBooking(booking.id, {
-      teacherConfirmation: "NEGADO",
-      cancellationReason,
-      cancellationRead: false,
+    updateBookingMutation.mutate({
+      id: booking.id,
+      patch: {
+        teacherConfirmation: "NEGADO",
+        cancellationReason,
+        cancellationRead: false,
+      }
+    }, {
+      onSuccess: () => {
+        setActionTaken("NEGADO");
+        // Simulação de e-mail
+        console.log(`--- SIMULAÇÃO DE E-MAIL PARA GERENTE ---`);
+        console.log(`Assunto: Agendamento Cancelado pelo Docente`);
+        console.log(`Docente: ${booking.teacher}`);
+        console.log(`Disciplina: ${booking.discipline}`);
+        console.log(`Data: ${booking.date}`);
+        console.log(`Motivo: ${cancellationReason}`);
+        console.log(`--------------------------------------`);
+      }
     });
-    setActionTaken("NEGADO");
-    // Simulação de e-mail
-    console.log(`--- SIMULAÇÃO DE E-MAIL PARA GERENTE ---`);
-    console.log(`Assunto: Agendamento Cancelado pelo Docente`);
-    console.log(`Docente: ${booking.teacher}`);
-    console.log(`Disciplina: ${booking.discipline}`);
-    console.log(`Data: ${booking.date}`);
-    console.log(`Motivo: ${cancellationReason}`);
-    console.log(`--------------------------------------`);
   };
 
   const renderContent = () => {
@@ -114,7 +127,10 @@ const Confirmation = () => {
             />
             <div className="flex justify-end gap-2">
               <Button variant="ghost" onClick={() => setIsDenying(false)}>Voltar</Button>
-              <Button variant="destructive" onClick={handleDeny}>Confirmar Recusa</Button>
+              <Button variant="destructive" onClick={handleDeny} disabled={updateBookingMutation.isPending}>
+                {updateBookingMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                Confirmar Recusa
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -137,8 +153,11 @@ const Confirmation = () => {
             <p><strong>Horário:</strong> {booking.start} às {booking.end} ({booking.period})</p>
           </div>
           <div className="flex justify-around gap-4">
-            <Button variant="destructive" size="lg" onClick={() => setIsDenying(true)}>Recusar Agendamento</Button>
-            <Button variant="default" size="lg" onClick={handleConfirm}>Confirmar Agendamento</Button>
+            <Button variant="destructive" size="lg" onClick={() => setIsDenying(true)} disabled={updateBookingMutation.isPending}>Recusar Agendamento</Button>
+            <Button variant="default" size="lg" onClick={handleConfirm} disabled={updateBookingMutation.isPending}>
+              {updateBookingMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              Confirmar Agendamento
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -146,7 +165,7 @@ const Confirmation = () => {
   };
 
   return (
-    <main className="flex items-center justify-center min-h-screen bg-gray-50">
+    <main className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-950">
       <Helmet>
         <title>Confirmação de Agendamento</title>
       </Helmet>
