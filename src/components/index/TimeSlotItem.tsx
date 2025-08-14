@@ -18,7 +18,7 @@ export function TimeSlotItem({ slot, date }: TimeSlotItemProps) {
   const booked = getBySlot(dateISO, slot.period);
 
   return (
-    <div className="flex items-start justify-between rounded-md border p-3">
+    <div className="flex items-end justify-between rounded-md border p-3">
       <div className="flex-1">
         <div className="text-xs text-muted-foreground">{slot.period}</div>
         <div className="font-medium">
