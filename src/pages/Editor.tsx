@@ -136,7 +136,7 @@ const Editor = () => {
   const handleRevertCompletion = (disciplineName: string) => {
     updateDisciplineMutation.mutate({
       disciplineName,
-      patch: { completionDate: undefined }
+      patch: { completionDate: null } // Use null to ensure it's serialized in JSON
     });
   };
 

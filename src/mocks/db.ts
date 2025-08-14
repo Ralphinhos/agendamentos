@@ -76,9 +76,12 @@ export const db = {
     const updatedBookings = bookings.map(b => {
       if (b.discipline === disciplineName) {
         // Handle special case for reverting completion by removing a property
-        if ('completionDate' in patch && patch.completionDate === undefined) {
+        if (patch.completionDate === null) {
           const { completionDate, ...rest } = b;
-          return { ...rest, ...patch };
+          // Create a new patch without completionDate to avoid re-adding it as null
+          const newPatch = { ...patch };
+          delete newPatch.completionDate;
+          return { ...rest, ...newPatch };
         }
         return { ...b, ...patch };
       }
