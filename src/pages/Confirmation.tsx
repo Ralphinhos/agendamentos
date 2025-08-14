@@ -13,10 +13,9 @@ import { Loader2 } from "lucide-react";
 
 const Confirmation = () => {
   const { bookingId } = useParams<{ bookingId: string }>();
-  const { bookings } = useBookings();
+  const { bookings, isLoading: isLoadingBookings } = useBookings();
   const updateBookingMutation = useUpdateBooking();
 
-  // Local state to manage the immediate UI response after an action
   const [actionTaken, setActionTaken] = useState<"CONFIRMADO" | "NEGADO" | null>(null);
   const [isDenying, setIsDenying] = useState(false);
   const [cancellationReason, setCancellationReason] = useState("");
@@ -45,7 +44,6 @@ const Confirmation = () => {
     }, {
       onSuccess: () => {
         setActionTaken("NEGADO");
-        // Simulação de e-mail
         console.log(`--- SIMULAÇÃO DE E-MAIL PARA GERENTE ---`);
         console.log(`Assunto: Agendamento Cancelado pelo Docente`);
         console.log(`Docente: ${booking.teacher}`);
@@ -58,7 +56,14 @@ const Confirmation = () => {
   };
 
   const renderContent = () => {
-    // 1. Handle booking not found
+    if (isLoadingBookings) {
+      return (
+        <div className="flex items-center justify-center">
+          <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        </div>
+      );
+    }
+
     if (!booking) {
       return (
         <Card className="w-full max-w-md text-center p-8">
@@ -70,7 +75,6 @@ const Confirmation = () => {
       );
     }
 
-    // 2. Handle immediate action taken in this session
     if (actionTaken === "CONFIRMADO") {
       return (
         <Card className="w-full max-w-2xl">
@@ -100,7 +104,6 @@ const Confirmation = () => {
       );
     }
 
-    // 3. Handle booking already actioned in a previous session
     if (booking.teacherConfirmation) {
       return (
         <Card className="w-full max-w-md text-center p-8">
@@ -112,7 +115,6 @@ const Confirmation = () => {
       );
     }
 
-    // 4. Handle user interaction for denial reason
     if (isDenying) {
       return (
         <Card className="w-full max-w-2xl">
@@ -137,7 +139,6 @@ const Confirmation = () => {
       );
     }
 
-    // 5. Default view: show booking details and action buttons
     return (
       <Card className="w-full max-w-2xl">
         <CardHeader className="text-center">
