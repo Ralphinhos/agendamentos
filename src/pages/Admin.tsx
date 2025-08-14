@@ -65,7 +65,7 @@ const Admin = () => {
   }, [bookings]);
 
   // Data sources for the three tables
-  const dailyScheduleData = useMemo(() => data.filter(b => !b.completionDate && b.status !== 'cancelado'), [data]);
+  const dailyScheduleData = useMemo(() => data.filter(b => !b.completionDate && b.status !== 'cancelado' && b.teacherConfirmation !== 'NEGADO' && b.status !== 'concluída'), [data]);
   const completedData = useMemo(() => {
     const uniqueDisciplines: Record<string, BookingWithProgress> = {};
     data.forEach(b => {

@@ -15,7 +15,6 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Loader2 } from "lucide-react";
-import { Booking } from "@/context/BookingsContext";
 
 interface BookingDialogProps {
   slot: { period: "MANHÃ" | "TARDE"; start: string; end: string };
@@ -103,19 +102,10 @@ export function BookingDialog({ slot, date, dateISO }: BookingDialogProps) {
         recordedUnits: form.recordedUnits,
       },
       {
-        onSuccess: (newBooking) => {
+        onSuccess: () => {
           setOpen(false);
-          const confirmationUrl = `/confirmation/${newBooking.id}`;
           toast.success("Reserva realizada!", {
-            description: (
-              <div className="flex flex-col gap-2">
-                <span>Agendado para {format(date, "dd/MM/yyyy")} no período da {slot.period.toLowerCase()}.</span>
-                <a href={confirmationUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">
-                  Ver Link de Confirmação do Docente
-                </a>
-              </div>
-            ),
-            duration: 10000,
+            description: `Agendado para ${format(date, "dd/MM/yyyy")} no período da ${slot.period.toLowerCase()}.`,
           });
         },
         onError: () => {
