@@ -1,6 +1,6 @@
 import { Booking } from '@/context/BookingsContext';
 
-const bookings: Booking[] = [
+const initialBookings: Booking[] = [
   {
     id: '1',
     date: '2024-08-19',
@@ -49,40 +49,63 @@ const bookings: Booking[] = [
   },
 ];
 
-// In-memory database operations
+const DB_KEY = 'bookings_db';
+
+const getBookingsFromStorage = (): Booking[] => {
+  const data = sessionStorage.getItem(DB_KEY);
+  if (data) {
+    return JSON.parse(data);
+  }
+  // Se não houver nada no sessionStorage, inicialize com os dados mockados
+  sessionStorage.setItem(DB_KEY, JSON.stringify(initialBookings));
+  return initialBookings;
+};
+
+const saveBookingsToStorage = (bookings: Booking[]) => {
+  sessionStorage.setItem(DB_KEY, JSON.stringify(bookings));
+};
+
+// In-memory database operations that persist to sessionStorage
 export const db = {
-  getAllBookings: () => bookings,
+  getAllBookings: () => {
+    return getBookingsFromStorage();
+  },
   getBookingById: (id: string) => {
-    const booking = bookings.find(b => b.id === id);
-    return booking || null;
+    const bookings = getBookingsFromStorage();
+    return bookings.find(b => b.id === id) || null;
   },
   addBooking: (newBookingData: Omit<Booking, 'id'>) => {
+    const bookings = getBookingsFromStorage();
     const newBooking: Booking = {
       id: new Date().toISOString(), // Simple unique ID
       ...newBookingData,
     };
     bookings.push(newBooking);
+    saveBookingsToStorage(bookings);
     return newBooking;
   },
   updateBooking: (id: string, patch: Partial<Booking>) => {
+    const bookings = getBookingsFromStorage();
     const index = bookings.findIndex(b => b.id === id);
     if (index === -1) return null;
     bookings[index] = { ...bookings[index], ...patch };
+    saveBookingsToStorage(bookings);
     return bookings[index];
   },
   deleteBooking: (id: string) => {
+    const bookings = getBookingsFromStorage();
     const index = bookings.findIndex(b => b.id === id);
     if (index === -1) return false;
     bookings.splice(index, 1);
+    saveBookingsToStorage(bookings);
     return true;
   },
   updateBookingsByDiscipline: (disciplineName: string, patch: Partial<Booking>) => {
-    const updatedBookings = bookings.map(b => {
+    let bookings = getBookingsFromStorage();
+    bookings = bookings.map(b => {
       if (b.discipline === disciplineName) {
-        // Handle special case for reverting completion by removing a property
         if (patch.completionDate === null) {
           const { completionDate, ...rest } = b;
-          // Create a new patch without completionDate to avoid re-adding it as null
           const newPatch = { ...patch };
           delete newPatch.completionDate;
           return { ...rest, ...newPatch };
@@ -91,7 +114,6 @@ export const db = {
       }
       return b;
     });
-    bookings.length = 0;
-    bookings.push(...updatedBookings);
+    saveBookingsToStorage(bookings);
   },
 };
