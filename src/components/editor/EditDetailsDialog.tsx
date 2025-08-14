@@ -37,7 +37,7 @@ export function EditDetailsDialog({ booking, onSave }: EditDetailsDialogProps) {
 
     if (formData.lessonsRecorded > maxLessonsAllowed) {
       toast.error("Limite de aulas excedido", {
-        description: `Você está tentando gravar ${formData.lessonsRecorded} aulas, mas o limite para este agendamento é de ${maxLessonsAllowed} para não ultrapassar o total de ${totalUnits} da disciplina.`,
+        description: `Limite excedido: você tentou gravar ${formData.lessonsRecorded} aulas, mas o máximo permitido neste agendamento é ${maxLessonsAllowed}.`,
       });
       return;
     }
