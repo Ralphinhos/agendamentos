@@ -45,22 +45,24 @@ const Admin = () => {
   const data = useMemo<BookingWithProgress[]>(() => {
     if (!bookings) return [];
     const progressMap: Record<string, { totalUnits: number; actualRecorded: number }> = {};
+
+    // First pass: calculate total recorded units for each discipline
     bookings.forEach(b => {
-      if (!b.discipline || !b.totalUnits) return;
+      if (!b.discipline) return;
       if (!progressMap[b.discipline]) {
-        progressMap[b.discipline] = { totalUnits: b.totalUnits, actualRecorded: 0 };
+        progressMap[b.discipline] = { totalUnits: b.totalUnits || 0, actualRecorded: 0 };
       }
       progressMap[b.discipline].actualRecorded += b.lessonsRecorded ?? b.recordedUnits ?? 0;
     });
 
     return bookings.map(b => {
-      const progress = progressMap[b.discipline] || { totalUnits: 0, actualRecorded: 0 };
+      const progress = progressMap[b.discipline] || { totalUnits: b.totalUnits || 0, actualRecorded: 0 };
       const percentage = progress.totalUnits > 0 ? (progress.actualRecorded / progress.totalUnits) * 100 : 0;
       return {
         ...b,
         disciplineProgress: Math.min(percentage, 100),
         actualRecorded: progress.actualRecorded,
-        totalUnits: progress.totalUnits
+        totalUnits: progress.totalUnits || 0
       };
     });
   }, [bookings]);
@@ -77,6 +79,9 @@ const Admin = () => {
     { accessorKey: "teacher", header: "Docente" },
     { accessorKey: "discipline", header: "Disciplina" },
     { accessorKey: "status", header: "Status Edição", cell: ({ row }) => <Badge className={cn("text-white", statusColors[row.original.status])}>{row.original.status}</Badge> },
+    { accessorKey: "disciplineProgress", header: "Progresso", cell: ({ row }) => (
+        <div className="relative w-full"><Progress value={row.original.disciplineProgress} className="h-5" /><span className="absolute inset-0 flex items-center justify-center text-xs font-medium text-primary-foreground">{row.original.actualRecorded}/{row.original.totalUnits}</span></div>
+    )},
     { id: 'actions', header: "Ações", cell: ({ row }) => row.original.editorNotes ? (
         <Dialog><DialogTrigger asChild><Button variant="ghost" size="icon" title="Ver Observações"><FileText className="h-4 w-4" /></Button></DialogTrigger><DialogContent><DialogHeader><DialogTitle>Observações do Editor</DialogTitle></DialogHeader><div className="py-4"><p className="text-sm text-muted-foreground">{row.original.editorNotes}</p></div></DialogContent></Dialog>
     ) : null },

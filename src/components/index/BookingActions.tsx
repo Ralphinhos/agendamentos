@@ -45,7 +45,7 @@ export function BookingActions({ booking }: BookingActionsProps) {
       patch: {
         status: 'cancelado',
         cancellationReason: 'Cancelado pelo Administrador',
-        cancellationReadByEditor: false,
+        cancellationReadByEditor: false, // Ensure editor gets a notification
       }
     }, {
       onSuccess: () => {

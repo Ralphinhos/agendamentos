@@ -37,7 +37,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { Upload, FileText, XCircle, CheckCircle2, Undo2, Check, CalendarClock, ListChecks, CheckCircle } from "lucide-react";
+import { Upload, FileText, XCircle, CheckCircle2, Undo2, Check, CalendarClock, ListChecks, CheckCircle, XSquare } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useUpdateBooking } from "@/hooks/api/useUpdateBooking";
 import { useUpdateDiscipline } from "@/hooks/api/useUpdateDiscipline";
@@ -75,12 +75,31 @@ const Editor = () => {
 
   const data = useMemo<BookingWithProgress[]>(() => {
     if (!bookings) return [];
-    // Pre-filter to remove all canceled bookings from the editor's view, as requested.
-    return bookings.filter(b => b.status !== 'cancelado');
+    const activeBookings = bookings.filter(b => b.status !== 'cancelado');
+
+    const progressMap: Record<string, { totalUnits: number; actualRecorded: number }> = {};
+    activeBookings.forEach(b => {
+      if (!b.discipline) return;
+      if (!progressMap[b.discipline]) {
+        progressMap[b.discipline] = { totalUnits: b.totalUnits || 0, actualRecorded: 0 };
+      }
+      progressMap[b.discipline].actualRecorded += b.lessonsRecorded ?? b.recordedUnits ?? 0;
+    });
+
+    return activeBookings.map(b => {
+      const progress = progressMap[b.discipline] || { totalUnits: b.totalUnits || 0, actualRecorded: 0 };
+      const percentage = progress.totalUnits > 0 ? (progress.actualRecorded / progress.totalUnits) * 100 : 0;
+      return {
+        ...b,
+        disciplineProgress: Math.min(percentage, 100),
+        actualRecorded: progress.actualRecorded,
+        totalUnits: progress.totalUnits || 0,
+      };
+    });
   }, [bookings]);
 
-  // Data sources for the three tabs, following user's new rules
-  const dailyScheduleData = useMemo(() => data.filter(b => b.status === 'pendente' || b.status === 'em-andamento'), [data]);
+  // Data sources for the tabs, following user's new rules
+  const dailyScheduleData = useMemo(() => data.filter(b => (b.status === 'pendente' || b.status === 'em-andamento')), [data]);
   const inProgressData = useMemo(() => data.filter(b => b.status === 'concluída' && !b.completionDate), [data]);
   const completedData = useMemo(() => data.filter(b => !!b.completionDate), [data]);
 
@@ -130,6 +149,9 @@ const Editor = () => {
           <Badge className={cn("cursor-pointer", statusColors[row.original.status])} onClick={() => handleStatusChange(row.original.id, row.original.status)}>{row.original.status}</Badge>
         </div>
     )},
+    { accessorKey: "disciplineProgress", header: "Progresso", cell: ({ row }) => (
+      <div className="relative w-full"><Progress value={row.original.disciplineProgress} className="h-5" /><span className="absolute inset-0 flex items-center justify-center text-xs font-medium text-primary-foreground">{row.original.actualRecorded}/{row.original.totalUnits}</span></div>
+    )},
     { id: "actions", cell: ({ row }) => (
         <div className="flex items-center gap-1">
           <Dialog open={editingBookingId === row.original.id} onOpenChange={(isOpen) => !isOpen && setEditingBookingId(null)}>
@@ -145,7 +167,12 @@ const Editor = () => {
     )}
   ];
 
-  const inProgressCols = dailyScheduleCols.filter(c => c.id !== 'actions');
+  const inProgressCols: ColumnDef<BookingWithProgress>[] = [
+    { accessorKey: "date", header: "Data", cell: ({ row }) => format(new Date(row.original.date.replace(/-/g, '/')), "dd/MM/yyyy") },
+    { accessorKey: "teacher", header: "Docente" },
+    { accessorKey: "discipline", header: "Disciplina" },
+    { accessorKey: "status", header: "Status Edição", cell: ({ row }) => <Badge className={cn("text-white", statusColors[row.original.status])}>{row.original.status}</Badge> },
+  ];
 
   const completedCols: ColumnDef<BookingWithProgress>[] = [
     { accessorKey: "completionDate", header: "Data de Conclusão", cell: ({ row }) => row.original.completionDate ? format(new Date(row.original.completionDate.replace(/-/g, '/')), "dd/MM/yyyy") : "N/A" },
