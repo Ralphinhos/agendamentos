@@ -15,6 +15,9 @@ import { useUpdateBooking } from "@/hooks/api/useUpdateBooking";
 import { Link2, Send, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { EditBookingDialog } from "./EditBookingDialog";
+import { useState } from "react";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 
 interface BookingActionsProps {
   booking: Booking;
@@ -22,6 +25,7 @@ interface BookingActionsProps {
 
 export function BookingActions({ booking }: BookingActionsProps) {
   const updateBookingMutation = useUpdateBooking();
+  const [cancellationReason, setCancellationReason] = useState("");
   const confirmationLink = `${window.location.origin}/confirmacao/${booking.id}`;
 
   const copyLink = () => {
@@ -43,13 +47,14 @@ export function BookingActions({ booking }: BookingActionsProps) {
     updateBookingMutation.mutate({
       id: booking.id,
       patch: {
-        status: 'cancelado',
-        cancellationReason: 'Cancelado pelo Administrador',
+        status: 'cancelado-admin',
+        cancellationReason: cancellationReason || 'Cancelado pelo Administrador',
         cancellationReadByEditor: false, // Ensure editor gets a notification
       }
     }, {
       onSuccess: () => {
         toast.success("Agendamento cancelado com sucesso.");
+        setCancellationReason(""); // Reset reason after submission
       }
     });
   };
@@ -91,11 +96,19 @@ export function BookingActions({ booking }: BookingActionsProps) {
             <AlertDialogTitle>Tem certeza que deseja cancelar?</AlertDialogTitle>
             <AlertDialogDescription>
               Esta ação marcará o agendamento como 'cancelado' e notificará o editor.
-              Você poderá ver o agendamento no histórico.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <div className="py-4 space-y-2">
+            <Label htmlFor="cancellationReason">Motivo do Cancelamento (opcional)</Label>
+            <Textarea
+              id="cancellationReason"
+              value={cancellationReason}
+              onChange={(e) => setCancellationReason(e.target.value)}
+              placeholder="Ex: Sala de gravação em manutenção."
+            />
+          </div>
           <AlertDialogFooter>
-            <AlertDialogCancel>Voltar</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => setCancellationReason("")}>Voltar</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleCancelBooking}
               className="bg-destructive hover:bg-destructive/90"

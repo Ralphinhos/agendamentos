@@ -45,7 +45,7 @@ function Index() {
   const bookedDays = useMemo(() => {
     if (!bookings) return [];
     const dates = bookings
-      .filter(b => b.teacherConfirmation !== 'NEGADO' && b.status !== 'cancelado' && !b.completionDate)
+      .filter(b => b.teacherConfirmation !== 'NEGADO' && !b.status.startsWith('cancelado') && !b.completionDate)
       .map(b => {
         const [year, month, day] = b.date.split('-').map(Number);
         return new Date(year, month - 1, day);
@@ -59,6 +59,10 @@ function Index() {
       return new Date(year, month - 1, day);
     });
   }, [holidays]);
+
+  const disabledDays = useMemo(() => {
+    return (day: Date) => day < new Date() || holidayDates.some(holidayDate => isSameDay(holidayDate, day));
+  }, [holidayDates]);
 
   useEffect(() => {
     const year = new Date().getFullYear();
@@ -121,16 +125,16 @@ function Index() {
                   day_hidden: "invisible",
                 }}
                 locale={ptBR}
-                disabled={holidayDates}
+                disabled={disabledDays}
                 modifiers={{
                   holiday: holidayDates,
                   booked: bookedDays,
+                  available: (day: Date) => !disabledDays(day) && !bookedDays.some(bookedDay => isSameDay(bookedDay, day))
                 }}
                 modifiersClassNames={{
                   holiday: "text-red-500",
-                  // se quiser evitar conflito visual com hoje/selecionado,
-                  // pode trocar bg por um anel: "ring-2 ring-brand-blue text-white rounded-full"
                   booked: "bg-brand-blue text-white rounded-full",
+                  available: "bg-green-200 dark:bg-green-800 rounded-full",
                 }}
               />
             </div>

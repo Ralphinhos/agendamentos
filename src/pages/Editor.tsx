@@ -75,7 +75,7 @@ const Editor = () => {
 
   const data = useMemo<BookingWithProgress[]>(() => {
     if (!bookings) return [];
-    const activeBookings = bookings.filter(b => b.teacherConfirmation !== 'NEGADO' && b.status !== 'cancelado');
+    const activeBookings = bookings.filter(b => b.teacherConfirmation !== 'NEGADO' && !b.status.startsWith('cancelado'));
     const bookingsByDiscipline: Record<string, Booking[]> = {};
     activeBookings.forEach(b => {
         if (!b.discipline) return;
@@ -121,9 +121,9 @@ const Editor = () => {
     updateBookingMutation.mutate({
       id: bookingId,
       patch: {
-        status: 'cancelado',
+        status: 'cancelado-editor',
         cancellationReason: reason,
-        editorCancellationRead: false
+        cancellationReadByAdmin: false
       }
     }, {
       onSuccess: () => { toast.success("Agendamento cancelado com sucesso."); }

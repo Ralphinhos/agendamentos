@@ -44,24 +44,22 @@ const NotificationsPage = () => {
           isNew: user?.role === 'admin' ? !b.cancellationRead : !b.cancellationReadByEditor,
         });
       }
-      // Cancellation Notifications
-      if (b.status === 'cancelado') {
-        // Notify admin about a cancellation by the editor
-        if (user?.role === 'admin' && b.cancellationReason !== 'Cancelado pelo Administrador') {
-          notifications.push({
-            ...b,
-            notificationType: 'cancellation-editor',
-            isNew: !b.editorCancellationRead,
-          });
-        }
-        // Notify editor about a cancellation by the admin
-        else if (user?.role === 'editor' && b.cancellationReason === 'Cancelado pelo Administrador') {
-          notifications.push({
-            ...b,
-            notificationType: 'cancellation-editor',
-            isNew: !b.cancellationReadByEditor,
-          });
-        }
+      // Cancellation Notifications for Admin
+      if (user?.role === 'admin' && b.status === 'cancelado-editor') {
+        notifications.push({
+          ...b,
+          notificationType: 'cancellation-editor',
+          isNew: !b.cancellationReadByAdmin,
+        });
+      }
+
+      // Cancellation Notifications for Editor
+      if (user?.role === 'editor' && b.status === 'cancelado-admin') {
+        notifications.push({
+          ...b,
+          notificationType: 'cancellation-editor',
+          isNew: !b.cancellationReadByEditor,
+        });
       }
       // Upload notifications
       if (b.uploadCompleted) {
@@ -92,7 +90,7 @@ const NotificationsPage = () => {
           if (user?.role === 'editor') {
             patch = { cancellationReadByEditor: true };
           } else if (user?.role === 'admin') {
-            patch = { editorCancellationRead: true };
+            patch = { cancellationReadByAdmin: true };
           }
         }
 
@@ -109,8 +107,9 @@ const NotificationsPage = () => {
 
   const renderCancellationReason = (b: Notification) => {
     if (b.notificationType === 'cancellation-teacher') return `Docente ${b.teacher} negou. Motivo: "${b.cancellationReason || 'N/A'}"`;
-    if (b.notificationType === 'cancellation-editor') return `Editor cancelou. Motivo: "${b.cancellationReason || 'N/A'}"`;
-    return `Cancelado pelo admin. Motivo: "${b.cancellationReason || 'N/A'}"`
+    if (b.status === 'cancelado-editor') return `Editor cancelou. Motivo: "${b.cancellationReason || 'N/A'}"`;
+    if (b.status === 'cancelado-admin') return `Admin cancelou. Motivo: "${b.cancellationReason || 'N/A'}"`;
+    return `Motivo: "${b.cancellationReason || 'N/A'}"`
   }
 
   return (
