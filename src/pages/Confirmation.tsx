@@ -1,5 +1,6 @@
 import { Helmet } from "react-helmet-async";
 import { useParams } from "react-router-dom";
+import { useBookings } from "@/context/BookingsContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { format } from "date-fns";
@@ -9,26 +10,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useUpdateBooking } from "@/hooks/api/useUpdateBooking";
 import { Loader2 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
-import { fetchBookingById } from "@/lib/api";
 
 const Confirmation = () => {
   const { bookingId } = useParams<{ bookingId: string }>();
+  const { bookings, isLoading: isLoadingBookings } = useBookings();
   const updateBookingMutation = useUpdateBooking();
-
-  const { data: booking, isLoading: isLoadingBookings, isError } = useQuery({
-    queryKey: ['booking', bookingId],
-    queryFn: () => {
-      if (!bookingId) throw new Error("ID do agendamento não fornecido");
-      return fetchBookingById(bookingId);
-    },
-    enabled: !!bookingId,
-    retry: false,
-  });
 
   const [actionTaken, setActionTaken] = useState<"CONFIRMADO" | "NEGADO" | null>(null);
   const [isDenying, setIsDenying] = useState(false);
   const [cancellationReason, setCancellationReason] = useState("");
+
+  const booking = bookings.find((b) => b.id === bookingId);
 
   const handleConfirm = () => {
     if (!booking) return;
@@ -72,7 +64,7 @@ const Confirmation = () => {
       );
     }
 
-    if (isError || !booking) {
+    if (!booking) {
       return (
         <Card className="w-full max-w-md text-center p-8">
           <CardHeader>
