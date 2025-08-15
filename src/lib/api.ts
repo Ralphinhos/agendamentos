@@ -17,6 +17,14 @@ async function handleResponse<T>(response: Response): Promise<T> {
 }
 
 /**
+ * Fetches a single booking by its ID.
+ */
+export const fetchBookingById = async (id: string): Promise<Booking> => {
+  const response = await fetch(`${API_BASE_URL}/bookings/${id}`);
+  return handleResponse<Booking>(response);
+};
+
+/**
  * Fetches all bookings from the API.
  */
 export const fetchBookings = async (): Promise<Booking[]> => {

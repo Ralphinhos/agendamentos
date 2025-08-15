@@ -53,6 +53,14 @@ function Index() {
     return dates;
   }, [bookings]);
 
+  const unbookedDays = useMemo(() => {
+    // This is a placeholder logic. In a real app, you'd want a more efficient way
+    // to determine which days are available. For this component, we'll just style
+    // all non-booked, non-holiday, non-disabled days this way.
+    return (day: Date) => !bookedDays.some(bookedDay => isSameDay(day, bookedDay)) &&
+                          !holidayDates.some(holidayDate => isSameDay(day, holidayDate))
+  }, [bookedDays, holidayDates]);
+
   const holidayDates = useMemo(() => {
     return holidays.map(h => {
       const [year, month, day] = h.date.split('-').map(Number);
@@ -109,28 +117,29 @@ function Index() {
                   head_cell: "text-muted-foreground rounded-md w-12 font-normal text-lg",
                   row: "flex w-full mt-2 justify-around",
                   cell: "h-12 w-12 text-center text-lg p-0 relative first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
-                  day: "h-12 w-12 p-0 font-normal aria-selected:opacity-100 rounded-full hover:bg-accent/50 transition-colors",
+                  day: "h-12 w-12 p-0 font-normal aria-selected:opacity-100 rounded-full",
                   day_selected:
-                    "bg-primary text-primary-foreground rounded-full hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
+                    "bg-blue-600 text-white rounded-full hover:bg-blue-700 focus:bg-blue-700",
                   day_today:
-                    "bg-accent text-accent-foreground rounded-full",
-                  day_outside: "text-muted-foreground opacity-50",
-                  day_disabled: "text-muted-foreground opacity-50",
-                  day_range_middle:
-                    "aria-selected:bg-accent aria-selected:text-accent-foreground",
+                    "bg-blue-600 text-white rounded-full",
+                  day_outside: "text-muted-foreground/50",
+                  day_disabled: "text-muted-foreground/50",
                   day_hidden: "invisible",
                 }}
                 locale={ptBR}
-                disabled={holidayDates}
+                disabled={[
+                  ...holidayDates,
+                  { before: new Date() }
+                ]}
                 modifiers={{
                   holiday: holidayDates,
                   booked: bookedDays,
+                  unbooked: unbookedDays,
                 }}
                 modifiersClassNames={{
                   holiday: "text-red-500",
-                  // se quiser evitar conflito visual com hoje/selecionado,
-                  // pode trocar bg por um anel: "ring-2 ring-brand-blue text-white rounded-full"
-                  booked: "bg-brand-blue text-white rounded-full",
+                  booked: "bg-slate-900 text-white rounded-full",
+                  unbooked: "text-sky-400 border border-sky-300 border-dashed rounded-full",
                 }}
               />
             </div>

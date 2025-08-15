@@ -47,11 +47,28 @@ const bookings: Booking[] = [
     completionDate: '2024-08-15',
     allRecordingsDone: true,
   },
+  {
+    id: '4',
+    date: '2024-08-21',
+    weekday: 'Quarta-feira',
+    period: 'MANHÃ',
+    start: '09:00',
+    end: '11:00',
+    course: 'Inteligência Artificial',
+    discipline: 'Aprendizado de Máquina',
+    teacher: 'Dr. Geoffrey Hinton',
+    status: 'cancelado',
+    totalUnits: 10,
+    recordedUnits: 0,
+  },
 ];
 
 // In-memory database operations
 export const db = {
   getAllBookings: () => bookings,
+  getBookingById: (id: string) => {
+    return bookings.find(b => b.id === id) || null;
+  },
   addBooking: (newBookingData: Omit<Booking, 'id'>) => {
     const newBooking: Booking = {
       id: new Date().toISOString(), // Simple unique ID

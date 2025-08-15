@@ -11,6 +11,19 @@ export const handlers = [
     return HttpResponse.json(db.getAllBookings())
   }),
 
+  // Get a single booking by ID
+  http.get(`${API_PREFIX}/bookings/:id`, ({ params }) => {
+    const { id } = params
+    if (typeof id !== 'string') {
+      return new HttpResponse(null, { status: 400 });
+    }
+    const booking = db.getBookingById(id)
+    if (!booking) {
+      return new HttpResponse(null, { status: 404 })
+    }
+    return HttpResponse.json(booking)
+  }),
+
   // Add a new booking
   http.post(`${API_PREFIX}/bookings`, async ({ request }) => {
     const newBookingData = await request.json() as Omit<Booking, 'id'>
