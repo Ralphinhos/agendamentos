@@ -63,6 +63,14 @@ export const removeBookingAPI = async (id: string): Promise<void> => {
 };
 
 /**
+ * Fetches a single booking by its ID.
+ */
+export const fetchBookingByIdAPI = async (id: string): Promise<Booking> => {
+  const response = await fetch(`${API_BASE_URL}/bookings/${id}`);
+  return handleResponse<Booking>(response);
+};
+
+/**
  * Updates all bookings for a given discipline.
  */
 export const updateDisciplineAPI = async (disciplineName: string, patch: Partial<Booking>): Promise<void> => {

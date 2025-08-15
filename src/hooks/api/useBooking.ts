@@ -1,16 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
-import { api } from '@/lib/api';
+import { fetchBookingByIdAPI } from '@/lib/api';
 import { Booking } from '@/context/BookingsContext';
 
-const fetchBookingById = async (id: string): Promise<Booking> => {
-  const { data } = await api.get(`/bookings/${id}`);
-  return data;
-};
-
 export const useBooking = (id: string) => {
-  return useQuery({
+  return useQuery<Booking, Error>({
     queryKey: ['booking', id],
-    queryFn: () => fetchBookingById(id),
+    queryFn: () => fetchBookingByIdAPI(id),
     enabled: !!id, // Only run the query if the id is not null or undefined
   });
 };
