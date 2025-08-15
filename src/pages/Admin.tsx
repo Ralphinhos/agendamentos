@@ -70,7 +70,7 @@ const Admin = () => {
   }, [bookings]);
 
   // Data sources for the three tables
-  const dailyScheduleData = useMemo(() => data.filter(b => !b.completionDate), [data]);
+  const dailyScheduleData = useMemo(() => data.filter(b => b.status === 'pendente' || b.status === 'em-andamento'), [data]);
   const completedData = useMemo(() => {
     const uniqueDisciplines: Record<string, BookingWithProgress> = {};
     data.forEach(b => {
@@ -96,6 +96,7 @@ const Admin = () => {
   // Column Definitions
   const dailyScheduleCols: ColumnDef<BookingWithProgress>[] = [
     { accessorKey: "date", header: "Data", cell: ({ row }) => format(new Date(row.original.date.replace(/-/g, '/')), "dd/MM/yyyy") },
+    { id: 'time', header: 'Horário', cell: ({ row }) => `${row.original.start} - ${row.original.end}` },
     { accessorKey: "teacher", header: "Docente" },
     { accessorKey: "course", header: "Curso" },
     { accessorKey: "discipline", header: "Disciplina" },

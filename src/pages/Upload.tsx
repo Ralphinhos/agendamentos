@@ -41,9 +41,16 @@ const UploadPage = () => {
         dailyDeliveryStatus: 'delivered',
       }
     }, {
-      onSuccess: () => {
+      onSuccess: (updatedBooking) => {
+        if (!updatedBooking) return;
         toast.success("Upload Concluído", { description: `Arquivo ${fileToUpload.name} enviado. O Admin foi notificado.` });
         setFileToUpload(null);
+        // Trigger a storage event to ensure header updates across tabs
+        localStorage.setItem('new-notification', JSON.stringify({
+          recipient: 'admin',
+          title: 'Upload Concluído',
+          message: `Editor enviou arquivos para: ${updatedBooking.discipline}`,
+        }));
       }
     });
   };
