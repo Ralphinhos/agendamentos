@@ -1,5 +1,5 @@
 import { Helmet } from "react-helmet-async";
-import { useBookings, BookingWithProgress } from "@/context/BookingsContext";
+import { useBookings, BookingWithProgress, Booking } from "@/context/BookingsContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
@@ -7,6 +7,8 @@ import { cn } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -24,15 +26,69 @@ import {
   flexRender,
 } from "@tanstack/react-table";
 import { Progress } from "@/components/ui/progress";
-import { CalendarClock, ListChecks, CheckCircle, FileText } from "lucide-react";
+import { CalendarClock, ListChecks, CheckCircle, FileText, X } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useUpdateBooking } from "@/hooks/api/useUpdateBooking";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 const statusColors: Record<EditingStatus, string> = {
   pendente: "bg-red-500",
   "em-andamento": "bg-yellow-500",
   concluída: "bg-green-500",
+  cancelado: "bg-gray-500",
 };
+
+const CancelBookingDialog = ({ booking, onOpenChange, open }: { booking: Booking; open: boolean; onOpenChange: (open: boolean) => void; }) => {
+  const [reason, setReason] = useState("");
+  const updateBookingMutation = useUpdateBooking();
+
+  const handleCancelBooking = () => {
+    updateBookingMutation.mutate({
+      id: booking.id,
+      patch: {
+        status: "cancelado",
+        cancellationReason: reason,
+        cancellationRead: false, // Notifica o editor
+      },
+    }, {
+      onSuccess: () => {
+        onOpenChange(false);
+        setReason("");
+      }
+    });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Cancelar Agendamento</DialogTitle>
+          <DialogDescription>
+            Tem certeza que deseja cancelar este agendamento? Esta ação não pode ser desfeita. O editor será notificado.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="py-4 space-y-2">
+          <Label htmlFor="cancellationReason">Motivo do Cancelamento (opcional)</Label>
+          <Textarea
+            id="cancellationReason"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="Informe o motivo para o editor..."
+          />
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => onOpenChange(false)}>Fechar</Button>
+          <Button variant="destructive" onClick={handleCancelBooking} disabled={updateBookingMutation.isPending}>
+            Confirmar Cancelamento
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 
 const Admin = () => {
   const { bookings } = useBookings();
@@ -40,13 +96,18 @@ const Admin = () => {
   const [inProgressSorting, setInProgressSorting] = useState<SortingState>([]);
   const [completedSorting, setCompletedSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
+  const [dialogState, setDialogState] = useState<{ [key: string]: boolean }>({});
+
+  const handleOpenChange = (bookingId: string, open: boolean) => {
+    setDialogState(prev => ({ ...prev, [bookingId]: open }));
+  };
 
   const data = useMemo<BookingWithProgress[]>(() => {
     if (!bookings) return [];
-    // The data processing logic can be simpler for admin, as we don't need cumulative progress.
-    // We just need the final total for each discipline.
+    const activeBookings = bookings.filter(b => b.teacherConfirmation !== 'NEGADO');
+
     const progressMap: Record<string, { totalUnits: number; actualRecorded: number }> = {};
-    bookings.forEach(b => {
+    activeBookings.forEach(b => {
       if (!b.discipline || !b.totalUnits) return;
       if (!progressMap[b.discipline]) {
         progressMap[b.discipline] = { totalUnits: b.totalUnits, actualRecorded: 0 };
@@ -54,7 +115,7 @@ const Admin = () => {
       progressMap[b.discipline].actualRecorded += b.lessonsRecorded ?? b.recordedUnits ?? 0;
     });
 
-    return bookings.map(b => {
+    return activeBookings.map(b => {
       const progress = progressMap[b.discipline] || { totalUnits: 0, actualRecorded: 0 };
       const percentage = progress.totalUnits > 0 ? (progress.actualRecorded / progress.totalUnits) * 100 : 0;
       return {
@@ -67,7 +128,7 @@ const Admin = () => {
   }, [bookings]);
 
   // Data sources for the three tables
-  const dailyScheduleData = useMemo(() => data.filter(b => !b.completionDate), [data]);
+  const dailyScheduleData = useMemo(() => data.filter(b => !b.completionDate && b.status !== 'cancelado'), [data]);
   const completedData = useMemo(() => {
     const uniqueDisciplines: Record<string, BookingWithProgress> = {};
     data.forEach(b => {
@@ -97,9 +158,23 @@ const Admin = () => {
     { accessorKey: "course", header: "Curso" },
     { accessorKey: "discipline", header: "Disciplina" },
     { accessorKey: "status", header: "Status Edição", cell: ({ row }) => <Badge className={cn("text-white", statusColors[row.original.status])}>{row.original.status}</Badge> },
-    { id: 'actions', header: "Ações", cell: ({ row }) => row.original.editorNotes ? (
-        <Dialog><DialogTrigger asChild><Button variant="ghost" size="icon" title="Ver Observações"><FileText className="h-4 w-4" /></Button></DialogTrigger><DialogContent><DialogHeader><DialogTitle>Observações do Editor</DialogTitle></DialogHeader><div className="py-4"><p className="text-sm text-muted-foreground">{row.original.editorNotes}</p></div></DialogContent></Dialog>
-    ) : null },
+    { id: 'actions', header: "Ações", cell: ({ row }) => (
+      <div className="flex items-center space-x-2">
+        {row.original.editorNotes && (
+          <Dialog><DialogTrigger asChild><Button variant="ghost" size="icon" title="Ver Observações"><FileText className="h-4 w-4" /></Button></DialogTrigger><DialogContent><DialogHeader><DialogTitle>Observações do Editor</DialogTitle></DialogHeader><div className="py-4"><p className="text-sm text-muted-foreground">{row.original.editorNotes}</p></div></DialogContent></Dialog>
+        )}
+        <DialogTrigger asChild>
+          <Button variant="ghost" size="icon" title="Cancelar Agendamento" onClick={() => handleOpenChange(row.original.id, true)}>
+            <X className="h-4 w-4 text-red-500" />
+          </Button>
+        </DialogTrigger>
+        <CancelBookingDialog
+          booking={row.original}
+          open={dialogState[row.original.id] || false}
+          onOpenChange={(open) => handleOpenChange(row.original.id, open)}
+        />
+      </div>
+    )},
   ];
   const inProgressCols: ColumnDef<BookingWithProgress>[] = [
     { accessorKey: "discipline", header: "Disciplina" },

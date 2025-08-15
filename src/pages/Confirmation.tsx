@@ -1,6 +1,5 @@
 import { Helmet } from "react-helmet-async";
 import { useParams } from "react-router-dom";
-import { useBookings } from "@/context/BookingsContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { format } from "date-fns";
@@ -10,17 +9,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useUpdateBooking } from "@/hooks/api/useUpdateBooking";
 import { Loader2 } from "lucide-react";
+import { useGetBookingById } from "@/hooks/api/useGetBookingById";
 
 const Confirmation = () => {
   const { bookingId } = useParams<{ bookingId: string }>();
-  const { bookings, isLoading: isLoadingBookings } = useBookings();
+  const { data: booking, isLoading, isError } = useGetBookingById(bookingId);
   const updateBookingMutation = useUpdateBooking();
 
   const [actionTaken, setActionTaken] = useState<"CONFIRMADO" | "NEGADO" | null>(null);
   const [isDenying, setIsDenying] = useState(false);
   const [cancellationReason, setCancellationReason] = useState("");
-
-  const booking = bookings.find((b) => b.id === bookingId);
 
   const handleConfirm = () => {
     if (!booking) return;
@@ -56,7 +54,7 @@ const Confirmation = () => {
   };
 
   const renderContent = () => {
-    if (isLoadingBookings) {
+    if (isLoading) {
       return (
         <div className="flex items-center justify-center">
           <Loader2 className="h-10 w-10 animate-spin text-primary" />
@@ -64,7 +62,7 @@ const Confirmation = () => {
       );
     }
 
-    if (!booking) {
+    if (isError || !booking) {
       return (
         <Card className="w-full max-w-md text-center p-8">
           <CardHeader>
