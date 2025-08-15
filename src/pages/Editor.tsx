@@ -37,7 +37,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { Upload, FileText, XCircle, CheckCircle2, Undo2, Check, CalendarClock, ListChecks, CheckCircle } from "lucide-react";
+import { Upload, FileText, XCircle, CheckCircle2, Undo2, Check, CalendarClock, ListChecks, CheckCircle, ChevronRight, ChevronDown } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useUpdateBooking } from "@/hooks/api/useUpdateBooking";
 import { useUpdateDiscipline } from "@/hooks/api/useUpdateDiscipline";
@@ -47,6 +47,8 @@ import { OngoingBookingsTable } from "@/components/editor/OngoingBookingsTable";
 import { CompletedDisciplinesTable } from "@/components/editor/CompletedDisciplinesTable";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { DisciplineBookingsSubTable } from "@/components/editor/DisciplineBookingsSubTable";
+import React, { Fragment } from "react";
 
 
 const statusColors: Record<EditingStatus, string> = {
@@ -72,6 +74,7 @@ const Editor = () => {
   const [globalFilter, setGlobalFilter] = useState("");
   const [editingBookingId, setEditingBookingId] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<ExpandedState>({});
+  const [inProgressExpanded, setInProgressExpanded] = useState<ExpandedState>({});
 
   const data = useMemo<BookingWithProgress[]>(() => {
     if (!bookings) return [];
@@ -104,7 +107,7 @@ const Editor = () => {
     return processedBookings.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   }, [bookings]);
 
-  // Handlers... (omitted for brevity, they are unchanged)
+  // Handlers
   const handleStatusChange = (id: string, currentStatus: EditingStatus) => {
     updateBookingMutation.mutate({ id, patch: { status: nextStatus[currentStatus] }});
   };
@@ -127,7 +130,7 @@ const Editor = () => {
         status: 'cancelado',
         cancellationReason: reason,
         editorCancelled: true,
-        editorCancellationRead: false, // This flag is for the admin to mark as read
+        editorCancellationRead: false,
       }
     }, {
       onSuccess: () => {
@@ -167,27 +170,17 @@ const Editor = () => {
     });
   };
 
-  const handleRevertLastBooking = (disciplineName: string) => {
-    const disciplineBookings = bookings.filter(b => b.discipline === disciplineName && !b.completionDate);
-    const latestCompletedBooking = disciplineBookings
-      .filter(b => b.status === 'concluída')
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-      [0];
-
-    if (latestCompletedBooking) {
-      updateBookingMutation.mutate(
-        { id: latestCompletedBooking.id, patch: { status: 'em-andamento' } },
-        {
-          onSuccess: () => {
-            toast.success("Status revertido", {
-              description: "A última aula concluída foi revertida para 'em andamento'.",
-            });
-          }
+  const handleRevertBooking = (bookingId: string) => {
+    updateBookingMutation.mutate(
+      { id: bookingId, patch: { status: 'em-andamento' } },
+      {
+        onSuccess: () => {
+          toast.success("Status revertido", {
+            description: "A aula foi revertida para 'em andamento' e voltou para a Agenda do Dia.",
+          });
         }
-      );
-    } else {
-      toast.error("Nenhuma aula para reverter.");
-    }
+      }
+    );
   };
 
   // Main table for daily schedule
@@ -222,7 +215,8 @@ const Editor = () => {
   ];
 
   // Data sources for the three tables
-  const dailyScheduleData = useMemo(() => data ? data.filter(b => !b.completionDate) : [], [data]);
+  const dailyScheduleData = useMemo(() => data ? data.filter(b => b.status === 'pendente' || b.status === 'em-andamento') : [], [data]);
+
   const completedData = useMemo(() => {
     if (!data) return [];
     const uniqueDisciplines: Record<string, BookingWithProgress> = {};
@@ -239,12 +233,13 @@ const Editor = () => {
     });
     return Object.values(uniqueDisciplines);
   }, [data]);
+
   const inProgressData = useMemo(() => {
       const disciplineSummary: Record<string, BookingWithProgress> = {};
-      const completedOrScheduledForCompletion = new Set(completedData.map(d => d.discipline));
+      const completedDisciplines = new Set(completedData.map(d => d.discipline));
 
       data.forEach(booking => {
-          if (booking.discipline && !completedOrScheduledForCompletion.has(booking.discipline)) {
+          if (booking.discipline && !completedDisciplines.has(booking.discipline)) {
               // If it's the last known booking for this discipline, use it for summary
               disciplineSummary[booking.discipline] = booking;
           }
@@ -265,30 +260,61 @@ const Editor = () => {
     }},
     { id: "actions", cell: ({ row }) => (
         <div className="flex items-center gap-2">
-            <Button variant="secondary" size="sm" onClick={() => handleRevertCompletion(row.original.discipline)}>Reverter</Button>
+            <Button variant="secondary" size="sm" onClick={() => handleRevertCompletion(row.original.discipline)}>Reverter Conclusão</Button>
         </div>
     )}
   ], state: { sorting: completedSorting, globalFilter, }, onSortingChange: setCompletedSorting, onGlobalFilterChange: setGlobalFilter, getCoreRowModel: getCoreRowModel(), getSortedRowModel: getSortedRowModel(), getFilteredRowModel: getFilteredRowModel() });
-  const inProgressTable = useReactTable({ data: inProgressData, columns: [
-    { accessorKey: "discipline", header: "Disciplina" },
-    { accessorKey: "teacher", header: "Docente" },
-    { accessorKey: "course", header: "Curso" },
-    { accessorKey: "disciplineProgress", header: "Progresso", cell: ({ row }) => {
-        const { disciplineProgress, actualRecorded, totalUnits } = row.original;
-        return (<div className="w-full relative"><Progress value={disciplineProgress} className="h-5" /><span className="absolute inset-0 flex items-center justify-center text-xs font-medium text-primary-foreground">{actualRecorded}/{totalUnits}</span></div>)
-    }},
-    { id: "actions", cell: ({ row }) => {
-        const { actualRecorded, totalUnits, discipline } = row.original;
-        const progressIsComplete = actualRecorded >= totalUnits;
-        return (
-            <div className="flex items-center gap-2">
-              <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" onClick={() => handleRevertLastBooking(discipline)}><Undo2 className="h-4 w-4 text-orange-500" /></Button></TooltipTrigger><TooltipContent><p>Reverter Última Aula Concluída</p></TooltipContent></Tooltip>
-              {progressIsComplete && !row.original.allRecordingsDone && <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" onClick={() => handleMarkAllRecordingsDone(discipline)}><CheckCircle2 className="h-4 w-4 text-green-600" /></Button></TooltipTrigger><TooltipContent><p>Finalizar Todas as Gravações</p></TooltipContent></Tooltip>}
-              {row.original.allRecordingsDone && <><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" onClick={() => handleReopenRecordings(discipline)}><Undo2 className="h-4 w-4 text-blue-600" /></Button></TooltipTrigger><TooltipContent><p>Reabrir Gravações</p></TooltipContent></Tooltip><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" onClick={() => handleCompleteDiscipline(discipline)}><Check className="h-4 w-4 text-green-600" /></Button></TooltipTrigger><TooltipContent><p>Concluir Disciplina</p></TooltipContent></Tooltip></>}
-            </div>
-        )
-    }},
-  ], state: { sorting: inProgressSorting, globalFilter, }, onSortingChange: setInProgressSorting, onGlobalFilterChange: setGlobalFilter, getCoreRowModel: getCoreRowModel(), getSortedRowModel: getSortedRowModel(), getFilteredRowModel: getFilteredRowModel() });
+
+  const inProgressTable = useReactTable({
+    data: inProgressData,
+    columns: [
+      {
+        id: 'expander',
+        header: () => null,
+        cell: ({ row }) => (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={row.getToggleExpandedHandler()}
+            disabled={!row.getCanExpand()}
+            title={row.getIsExpanded() ? "Recolher" : "Expandir"}
+          >
+            {row.getIsExpanded() ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+          </Button>
+        ),
+      },
+      { accessorKey: "discipline", header: "Disciplina" },
+      { accessorKey: "teacher", header: "Docente" },
+      { accessorKey: "course", header: "Curso" },
+      { accessorKey: "disciplineProgress", header: "Progresso", cell: ({ row }) => {
+          const { disciplineProgress, actualRecorded, totalUnits } = row.original;
+          return (<div className="w-full relative"><Progress value={disciplineProgress} className="h-5" /><span className="absolute inset-0 flex items-center justify-center text-xs font-medium text-primary-foreground">{actualRecorded}/{totalUnits}</span></div>)
+      }},
+      { id: "actions", cell: ({ row }) => {
+          const { actualRecorded, totalUnits, discipline } = row.original;
+          const progressIsComplete = actualRecorded >= totalUnits;
+          return (
+              <div className="flex items-center justify-end gap-2">
+                {progressIsComplete && !row.original.allRecordingsDone && <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" onClick={() => handleMarkAllRecordingsDone(discipline)}><CheckCircle2 className="h-4 w-4 text-green-600" /></Button></TooltipTrigger><TooltipContent><p>Finalizar Todas as Gravações</p></TooltipContent></Tooltip>}
+                {row.original.allRecordingsDone && <><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" onClick={() => handleReopenRecordings(discipline)}><Undo2 className="h-4 w-4 text-blue-600" /></Button></TooltipTrigger><TooltipContent><p>Reabrir Gravações</p></TooltipContent></Tooltip><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" onClick={() => handleCompleteDiscipline(discipline)}><Check className="h-4 w-4 text-green-600" /></Button></TooltipTrigger><TooltipContent><p>Concluir Disciplina</p></TooltipContent></Tooltip></>}
+              </div>
+          )
+      }},
+    ],
+    state: {
+      sorting: inProgressSorting,
+      globalFilter,
+      expanded: inProgressExpanded,
+    },
+    onSortingChange: setInProgressSorting,
+    onGlobalFilterChange: setGlobalFilter,
+    onExpandedChange: setInProgressExpanded,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getExpandedRowModel: getExpandedRowModel(),
+    getRowCanExpand: () => true,
+  });
 
 
   return (
@@ -318,7 +344,38 @@ const Editor = () => {
             <div className="rounded-lg border bg-card mt-4">
                 <Table>
                     <TableHeader>{inProgressTable.getHeaderGroups().map(hg => <TableRow key={hg.id}>{hg.headers.map(h => <TableHead key={h.id}>{flexRender(h.column.columnDef.header, h.getContext())}</TableHead>)}</TableRow>)}</TableHeader>
-                    <TableBody>{inProgressTable.getRowModel().rows.length > 0 ? inProgressTable.getRowModel().rows.map(row => <TableRow key={row.id}>{row.getVisibleCells().map(cell => <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>)}</TableRow>) : <TableRow><TableCell colSpan={inProgressTable.getAllColumns().length} className="h-24 text-center">Nenhuma disciplina em andamento.</TableCell></TableRow>}</TableBody>
+                    <TableBody>
+                      {inProgressTable.getRowModel().rows.length > 0 ? (
+                        inProgressTable.getRowModel().rows.map(row => (
+                          <Fragment key={row.id}>
+                            <TableRow>
+                              {row.getVisibleCells().map(cell => (
+                                <TableCell key={cell.id}>
+                                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                </TableCell>
+                              ))}
+                            </TableRow>
+                            {row.getIsExpanded() && (
+                              <TableRow>
+                                <TableCell colSpan={row.getVisibleCells().length}>
+                                  <DisciplineBookingsSubTable
+                                    disciplineName={row.original.discipline}
+                                    allBookings={data}
+                                    onRevert={handleRevertBooking}
+                                  />
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </Fragment>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={inProgressTable.getAllColumns().length} className="h-24 text-center">
+                            Nenhuma disciplina em andamento.
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
                 </Table>
             </div>
           </TabsContent>
