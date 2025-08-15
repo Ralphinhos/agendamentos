@@ -118,15 +118,27 @@ const Editor = () => {
     });
   };
   const handleCancelBooking = (bookingId: string, reason: string) => {
+    const booking = bookings.find(b => b.id === bookingId);
+    if (!booking) return;
+
     updateBookingMutation.mutate({
       id: bookingId,
       patch: {
         status: 'cancelado',
         cancellationReason: reason,
-        editorCancellationRead: false
+        editorCancelled: true,
+        editorCancellationRead: false, // This flag is for the admin to mark as read
       }
     }, {
-      onSuccess: () => { toast.success("Agendamento cancelado com sucesso."); }
+      onSuccess: () => {
+        toast.success("Agendamento cancelado com sucesso.");
+        localStorage.setItem('new-notification', JSON.stringify({
+          recipient: 'admin',
+          title: 'Cancelado pelo Editor',
+          message: `O agendamento para ${booking.discipline} foi cancelado.`,
+          reason: reason
+        }));
+      }
     });
   };
   const handleRevertCompletion = (disciplineName: string) => {
