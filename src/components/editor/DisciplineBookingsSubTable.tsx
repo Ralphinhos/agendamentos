@@ -23,12 +23,12 @@ const statusColors: Record<EditingStatus, string> = {
 export function DisciplineBookingsSubTable({ disciplineName, allBookings, onRevert }: DisciplineBookingsSubTableProps) {
   const disciplineBookings = useMemo(() => {
     return allBookings
-      .filter(b => b.discipline === disciplineName)
+      .filter(b => b.discipline === disciplineName && b.status === 'concluída')
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   }, [disciplineName, allBookings]);
 
   if (disciplineBookings.length === 0) {
-    return <div className="p-4 text-center text-sm text-muted-foreground">Nenhum agendamento encontrado para esta disciplina.</div>;
+    return <div className="p-4 text-center text-sm text-muted-foreground">Nenhuma aula concluída para esta disciplina.</div>;
   }
 
   return (
