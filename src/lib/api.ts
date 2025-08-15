@@ -25,14 +25,6 @@ export const fetchBookings = async (): Promise<Booking[]> => {
 };
 
 /**
- * Fetches a single booking by its ID.
- */
-export const fetchBookingById = async (id: string): Promise<Booking> => {
-  const response = await fetch(`${API_BASE_URL}/bookings/${id}`);
-  return handleResponse<Booking>(response);
-};
-
-/**
  * Adds a new booking.
  */
 export const addBookingAPI = async (newBookingData: Omit<Booking, 'id'>): Promise<Booking> => {

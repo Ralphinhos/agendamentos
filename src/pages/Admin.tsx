@@ -24,7 +24,7 @@ import {
   flexRender,
 } from "@tanstack/react-table";
 import { Progress } from "@/components/ui/progress";
-import { CalendarClock, ListChecks, CheckCircle, FileText, XSquare } from "lucide-react";
+import { CalendarClock, ListChecks, CheckCircle, FileText } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
@@ -43,6 +43,8 @@ const Admin = () => {
 
   const data = useMemo<BookingWithProgress[]>(() => {
     if (!bookings) return [];
+    // The data processing logic can be simpler for admin, as we don't need cumulative progress.
+    // We just need the final total for each discipline.
     const progressMap: Record<string, { totalUnits: number; actualRecorded: number }> = {};
     bookings.forEach(b => {
       if (!b.discipline || !b.totalUnits) return;
@@ -65,7 +67,7 @@ const Admin = () => {
   }, [bookings]);
 
   // Data sources for the three tables
-  const dailyScheduleData = useMemo(() => data.filter(b => !b.completionDate && b.status !== 'cancelado' && b.teacherConfirmation !== 'NEGADO' && b.status !== 'concluída'), [data]);
+  const dailyScheduleData = useMemo(() => data.filter(b => !b.completionDate), [data]);
   const completedData = useMemo(() => {
     const uniqueDisciplines: Record<string, BookingWithProgress> = {};
     data.forEach(b => {
@@ -81,7 +83,7 @@ const Admin = () => {
     const disciplineSummary: Record<string, BookingWithProgress> = {};
     const completedDisciplines = new Set(completedData.map(d => d.discipline));
     data.forEach(booking => {
-      if (booking.discipline && !completedDisciplines.has(booking.discipline) && booking.status !== 'cancelado') {
+      if (booking.discipline && !completedDisciplines.has(booking.discipline)) {
         disciplineSummary[booking.discipline] = booking;
       }
     });
@@ -95,9 +97,6 @@ const Admin = () => {
     { accessorKey: "course", header: "Curso" },
     { accessorKey: "discipline", header: "Disciplina" },
     { accessorKey: "status", header: "Status Edição", cell: ({ row }) => <Badge className={cn("text-white", statusColors[row.original.status])}>{row.original.status}</Badge> },
-    { accessorKey: "disciplineProgress", header: "Progresso", cell: ({ row }) => (
-        <div className="relative w-full"><Progress value={row.original.disciplineProgress} className="h-5" /><span className="absolute inset-0 flex items-center justify-center text-xs font-medium text-primary-foreground">{row.original.actualRecorded}/{row.original.totalUnits}</span></div>
-    )},
     { id: 'actions', header: "Ações", cell: ({ row }) => row.original.editorNotes ? (
         <Dialog><DialogTrigger asChild><Button variant="ghost" size="icon" title="Ver Observações"><FileText className="h-4 w-4" /></Button></DialogTrigger><DialogContent><DialogHeader><DialogTitle>Observações do Editor</DialogTitle></DialogHeader><div className="py-4"><p className="text-sm text-muted-foreground">{row.original.editorNotes}</p></div></DialogContent></Dialog>
     ) : null },
@@ -114,9 +113,7 @@ const Admin = () => {
     { accessorKey: "completionDate", header: "Data de Conclusão", cell: ({ row }) => row.original.completionDate ? format(new Date(row.original.completionDate.replace(/-/g, '/')), "dd/MM/yyyy") : "N/A" },
     { accessorKey: "course", header: "Curso" },
     { accessorKey: "discipline", header: "Disciplina" },
-    { accessorKey: "disciplineProgress", header: "Progresso", cell: ({ row }) => (
-      <div className="relative w-full"><Progress value={row.original.disciplineProgress} className="h-5" /><span className="absolute inset-0 flex items-center justify-center text-xs font-medium text-primary-foreground">{row.original.actualRecorded}/{row.original.totalUnits}</span></div>
-    )},
+    inProgressCols.find(c => c.accessorKey === 'disciplineProgress')!,
   ];
 
   // Table Instances

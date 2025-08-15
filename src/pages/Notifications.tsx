@@ -44,21 +44,24 @@ const NotificationsPage = () => {
           isNew: user?.role === 'admin' ? !b.cancellationRead : !b.cancellationReadByEditor,
         });
       }
-      // Editor cancellation notifications
-      if (b.editorCancelled) {
-         notifications.push({
-          ...b,
-          notificationType: 'cancellation-editor',
-          isNew: user?.role === 'admin' ? !b.editorCancellationRead : false, // Editor doesn't get notified of their own cancellation
-        });
-      }
-      // Admin cancellation from calendar
-      if (b.status === 'cancelado' && b.cancellationReason?.includes('Administrador')) {
-        notifications.push({
-          ...b,
-          notificationType: 'cancellation-editor', // Re-use type for simplicity
-          isNew: user?.role === 'editor' ? !b.cancellationReadByEditor : false,
-        });
+      // Cancellation Notifications
+      if (b.status === 'cancelado') {
+        // Notify admin about a cancellation by the editor
+        if (user?.role === 'admin' && b.cancellationReason !== 'Cancelado pelo Administrador') {
+          notifications.push({
+            ...b,
+            notificationType: 'cancellation-editor',
+            isNew: !b.editorCancellationRead,
+          });
+        }
+        // Notify editor about a cancellation by the admin
+        else if (user?.role === 'editor' && b.cancellationReason === 'Cancelado pelo Administrador') {
+          notifications.push({
+            ...b,
+            notificationType: 'cancellation-editor',
+            isNew: !b.cancellationReadByEditor,
+          });
+        }
       }
       // Upload notifications
       if (b.uploadCompleted) {
@@ -172,10 +175,8 @@ const NotificationsPage = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-8"></TableHead>
-                  <TableHead>Data</TableHead>
+                  <TableHead>Data do Agendamento</TableHead>
                   <TableHead>Disciplina</TableHead>
-                  <TableHead>Docente</TableHead>
-                  <TableHead>Curso</TableHead>
                   <TableHead>Detalhes</TableHead>
                 </TableRow>
               </TableHeader>
@@ -186,8 +187,6 @@ const NotificationsPage = () => {
                       <TableCell>{b.isNew && <Circle className="h-2 w-2 text-blue-500 fill-current" />}</TableCell>
                       <TableCell>{format(new Date(b.date.replace(/-/g, '/')), "dd/MM/yyyy")}</TableCell>
                       <TableCell>{b.discipline}</TableCell>
-                      <TableCell>{b.teacher}</TableCell>
-                      <TableCell>{b.course}</TableCell>
                       <TableCell className="italic">
                         {renderCancellationReason(b)}
                       </TableCell>
@@ -195,7 +194,7 @@ const NotificationsPage = () => {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center h-24">
+                    <TableCell colSpan={4} className="text-center h-24">
                       Nenhuma notificação de cancelamento encontrada.
                     </TableCell>
                   </TableRow>
