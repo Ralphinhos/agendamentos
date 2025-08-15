@@ -1,6 +1,9 @@
 import { Booking } from '@/context/BookingsContext';
 
-const bookings: Booking[] = [
+const DB_KEY = 'bookings-db';
+
+// The initial data to seed the database if it's empty in localStorage
+const initialBookings: Booking[] = [
   {
     id: '1',
     date: '2024-08-19',
@@ -49,7 +52,37 @@ const bookings: Booking[] = [
   },
 ];
 
-// In-memory database operations
+// --- localStorage persistence layer ---
+const loadDb = (): Booking[] => {
+  try {
+    const data = localStorage.getItem(DB_KEY);
+    if (data) {
+      return JSON.parse(data);
+    }
+  } catch (error) {
+    console.error("Failed to load bookings from localStorage", error);
+  }
+  // If nothing in localStorage, or it fails to parse, seed with initial data
+  return initialBookings;
+};
+
+const saveDb = () => {
+  try {
+    localStorage.setItem(DB_KEY, JSON.stringify(bookings));
+  } catch (error) {
+    console.error("Failed to save bookings to localStorage", error);
+  }
+};
+
+// --- In-memory database, initialized from localStorage ---
+let bookings: Booking[] = loadDb();
+
+// Save db to localStorage on first load if it was empty
+if (!localStorage.getItem(DB_KEY)) {
+  saveDb();
+}
+
+// --- Database operations ---
 export const db = {
   getAllBookings: () => bookings,
   addBooking: (newBookingData: Omit<Booking, 'id'>) => {
@@ -58,23 +91,28 @@ export const db = {
       ...newBookingData,
     };
     bookings.push(newBooking);
+    saveDb();
     return newBooking;
   },
   updateBooking: (id: string, patch: Partial<Booking>) => {
     const index = bookings.findIndex(b => b.id === id);
     if (index === -1) return null;
     bookings[index] = { ...bookings[index], ...patch };
+    saveDb();
     return bookings[index];
   },
   deleteBooking: (id: string) => {
     const index = bookings.findIndex(b => b.id === id);
     if (index === -1) return false;
     bookings.splice(index, 1);
+    saveDb();
     return true;
   },
   updateBookingsByDiscipline: (disciplineName: string, patch: Partial<Booking>) => {
-    const updatedBookings = bookings.map(b => {
+    let updated = false;
+    bookings = bookings.map(b => {
       if (b.discipline === disciplineName) {
+        updated = true;
         // Handle special case for reverting completion by removing a property
         if (patch.completionDate === null) {
           const { completionDate, ...rest } = b;
@@ -87,7 +125,8 @@ export const db = {
       }
       return b;
     });
-    bookings.length = 0;
-    bookings.push(...updatedBookings);
+    if (updated) {
+      saveDb();
+    }
   },
 };
