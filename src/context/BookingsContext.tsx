@@ -2,7 +2,7 @@ import React, { createContext, useContext, useMemo, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchBookings } from "@/lib/api";
 
-export type EditingStatus = "pendente" | "em-andamento" | "concluída";
+export type EditingStatus = "pendente" | "em-andamento" | "concluída" | "cancelado";
 
 export interface EditedFile {
   name: string;

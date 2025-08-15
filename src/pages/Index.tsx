@@ -53,6 +53,13 @@ function Index() {
     return dates;
   }, [bookings]);
 
+  const holidayDates = useMemo(() => {
+    return holidays.map(h => {
+      const [year, month, day] = h.date.split('-').map(Number);
+      return new Date(year, month - 1, day);
+    });
+  }, [holidays]);
+
   const unbookedDays = useMemo(() => {
     // This is a placeholder logic. In a real app, you'd want a more efficient way
     // to determine which days are available. For this component, we'll just style
@@ -60,13 +67,6 @@ function Index() {
     return (day: Date) => !bookedDays.some(bookedDay => isSameDay(day, bookedDay)) &&
                           !holidayDates.some(holidayDate => isSameDay(day, holidayDate))
   }, [bookedDays, holidayDates]);
-
-  const holidayDates = useMemo(() => {
-    return holidays.map(h => {
-      const [year, month, day] = h.date.split('-').map(Number);
-      return new Date(year, month - 1, day);
-    });
-  }, [holidays]);
 
   useEffect(() => {
     const year = new Date().getFullYear();

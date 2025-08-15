@@ -45,62 +45,19 @@ import { CancelBookingDialog } from "@/components/editor/CancelBookingDialog";
 import { EditDetailsDialog } from "@/components/editor/EditDetailsDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Helmet } from "react-helmet-async";
-import { useBookings, BookingWithProgress } from "@/context/BookingsContext";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { format } from "date-fns";
-import { cn } from "@/lib/utils";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
-import { Input } from "@/components/ui/input";
-import { useState, useMemo } from "react";
-import { Booking, EditingStatus } from "@/context/BookingsContext";
-import { toast } from "sonner";
-import {
-  ColumnDef,
-  useReactTable,
-  SortingState,
-  getSortedRowModel,
-  getFilteredRowModel,
-  getExpandedRowModel,
-  ExpandedState,
-  getCoreRowModel,
-  flexRender,
-} from "@tanstack/react-table";
-import { Progress } from "@/components/ui/progress";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
-import { Upload, FileText, XCircle, Undo2, CalendarClock, ListChecks, CheckCircle } from "lucide-react";
-import { Link } from "react-router-dom";
-import { useUpdateBooking } from "@/hooks/api/useUpdateBooking";
-import { useUpdateDiscipline } from "@/hooks/api/useUpdateDiscipline";
-import { CancelBookingDialog } from "@/components/editor/CancelBookingDialog";
-import { EditDetailsDialog } from "@/components/editor/EditDetailsDialog";
 
 const statusColors: Record<EditingStatus, string> = {
   pendente: "bg-red-500",
   "em-andamento": "bg-yellow-500",
   concluída: "bg-green-500",
+  cancelado: "bg-gray-500",
 };
 
 const nextStatus: Record<EditingStatus, EditingStatus> = {
   pendente: "em-andamento",
   "em-andamento": "concluída",
   concluída: "pendente",
+  cancelado: "pendente",
 };
 
 const Editor = () => {
@@ -199,31 +156,44 @@ const Editor = () => {
     return Object.values(uniqueDisciplines);
   }, [data]);
 
-  const dailyColumns: ColumnDef<Booking>[] = [
-    { accessorKey: "date", header: "Data", cell: ({ row }) => format(new Date(row.original.date.replace(/-/g, '/')), "dd/MM/yyyy") },
+  const { getDisciplineProgress } = useBookings();
+
+  const dailyColumns: ColumnDef<BookingWithProgress>[] = [
+    { id: "date", header: "Data", cell: ({ row }) => format(new Date(row.original.date.replace(/-/g, '/')), "dd/MM/yyyy") },
     { id: "time", header: "Horário", cell: ({ row }) => `${row.original.start} - ${row.original.end}`},
-    { accessorKey: "teacher", header: "Docente" },
-    { accessorKey: "discipline", header: "Disciplina" },
-    { accessorKey: "status", header: "Status Edição", cell: ({ row }) => (
+    { id: "teacher", header: "Docente", cell: ({ row }) => row.original.teacher },
+    { id: "discipline", header: "Disciplina", cell: ({ row }) => row.original.discipline },
+    { id: "status", header: "Status Edição", cell: ({ row }) => (
         <Badge className={cn("cursor-pointer", statusColors[row.original.status])} onClick={() => handleStatusChange(row.original.id, row.original.status)}>{row.original.status}</Badge>
     )},
-    { id: "actions", cell: ({ row }) => (
-        <div className="flex items-center gap-1">
-            <Dialog open={editingBookingId === row.original.id} onOpenChange={(isOpen) => !isOpen && setEditingBookingId(null)}>
-                <Tooltip><TooltipTrigger asChild><DialogTrigger asChild><Button variant="ghost" size="icon" onClick={() => setEditingBookingId(row.original.id)}><FileText className="h-4 w-4" /></Button></DialogTrigger></TooltipTrigger><TooltipContent><p>Ver/Editar Detalhes</p></TooltipContent></Tooltip>
-                {editingBookingId === row.original.id && <EditDetailsDialog booking={row.original} onSave={handleSaveDetails} />}
-            </Dialog>
-            <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" asChild><Link to={`/upload/${row.original.id}`}><Upload className="h-4 w-4" /></Link></Button></TooltipTrigger><TooltipContent><p>Upload de Arquivos</p></TooltipContent></Tooltip>
-            <AlertDialog>
-                <Tooltip><TooltipTrigger asChild><AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="text-red-500 hover:text-red-600"><XCircle className="h-4 w-4" /></Button></AlertDialogTrigger></TooltipTrigger><TooltipContent><p>Cancelar Agendamento</p></TooltipContent></Tooltip>
-                <CancelBookingDialog onConfirm={(reason) => handleCancelBooking(row.original.id, reason)} />
-            </AlertDialog>
-        </div>
-    )}
+    { id: "actions", cell: ({ row }) => {
+        const booking = row.original;
+        const progress = getDisciplineProgress(booking.discipline);
+        const bookingWithProgress: BookingWithProgress = {
+            ...booking,
+            disciplineProgress: progress ? (progress.actualRecorded / progress.totalUnits) * 100 : 0,
+            actualRecorded: progress?.actualRecorded ?? 0,
+            totalUnits: progress?.totalUnits ?? 0,
+        };
+
+        return (
+            <div className="flex items-center gap-1">
+                <Dialog open={editingBookingId === booking.id} onOpenChange={(isOpen) => !isOpen && setEditingBookingId(null)}>
+                    <Tooltip><TooltipTrigger asChild><DialogTrigger asChild><Button variant="ghost" size="icon" onClick={() => setEditingBookingId(booking.id)}><FileText className="h-4 w-4" /></Button></DialogTrigger></TooltipTrigger><TooltipContent><p>Ver/Editar Detalhes</p></TooltipContent></Tooltip>
+                    {editingBookingId === booking.id && <EditDetailsDialog booking={bookingWithProgress} onSave={handleSaveDetails} />}
+                </Dialog>
+                <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" asChild><Link to={`/upload/${booking.id}`}><Upload className="h-4 w-4" /></Link></Button></TooltipTrigger><TooltipContent><p>Upload de Arquivos</p></TooltipContent></Tooltip>
+                <AlertDialog>
+                    <Tooltip><TooltipTrigger asChild><AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="text-red-500 hover:text-red-600"><XCircle className="h-4 w-4" /></Button></AlertDialogTrigger></TooltipTrigger><TooltipContent><p>Cancelar Agendamento</p></TooltipContent></Tooltip>
+                    <CancelBookingDialog onConfirm={(reason) => handleCancelBooking(booking.id, reason)} />
+                </AlertDialog>
+            </div>
+        )}
+    }
   ];
 
-  const inProgressColumns: ColumnDef<Booking>[] = [
-      ...dailyColumns.filter(c => c.id !== 'actions' && c.accessorKey !== 'status'),
+  const inProgressColumns: ColumnDef<BookingWithProgress>[] = [
+      ...dailyColumns.filter(c => c.id !== 'actions' && c.id !== 'status'),
       {
           id: 'actions',
           cell: ({ row }) => (
@@ -239,10 +209,10 @@ const Editor = () => {
       }
   ];
 
-  const completedColumns: ColumnDef<Booking>[] = [
-      { accessorKey: "completionDate", header: "Data de Conclusão", cell: ({ row }) => row.original.completionDate ? format(new Date(row.original.completionDate.replace(/-/g, '/')), "dd/MM/yyyy") : "N/A" },
-      { accessorKey: "course", header: "Curso" },
-      { accessorKey: "discipline", header: "Disciplina" },
+  const completedColumns: ColumnDef<BookingWithProgress>[] = [
+      { id: "completionDate", header: "Data de Conclusão", cell: ({ row }) => row.original.completionDate ? format(new Date(row.original.completionDate.replace(/-/g, '/')), "dd/MM/yyyy") : "N/A" },
+      { id: "course", header: "Curso", cell: ({ row }) => row.original.course },
+      { id: "discipline", header: "Disciplina", cell: ({ row }) => row.original.discipline },
       { id: "actions", cell: ({ row }) => (
           <div className="flex items-center gap-2">
               <Button variant="secondary" size="sm" onClick={() => handleRevertDiscipline(row.original.discipline)}>Reverter Conclusão</Button>

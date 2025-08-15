@@ -57,9 +57,10 @@ const bookings: Booking[] = [
     course: 'Inteligência Artificial',
     discipline: 'Aprendizado de Máquina',
     teacher: 'Dr. Geoffrey Hinton',
-    status: 'cancelado',
+    status: 'pendente',
     totalUnits: 10,
     recordedUnits: 0,
+    cancellationReason: 'Feriado',
   },
 ];
 

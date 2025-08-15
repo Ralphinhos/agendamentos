@@ -10,6 +10,7 @@ interface User {
 interface AuthContextValue {
   user: User | null;
   token: string | null;
+  role: Role | null;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
