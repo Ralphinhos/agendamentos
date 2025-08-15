@@ -43,10 +43,13 @@ const Admin = () => {
 
   const data = useMemo<BookingWithProgress[]>(() => {
     if (!bookings) return [];
+
+    const activeBookings = bookings.filter(b => b.teacherConfirmation !== 'NEGADO' && b.status !== 'cancelado');
+
     // The data processing logic can be simpler for admin, as we don't need cumulative progress.
     // We just need the final total for each discipline.
     const progressMap: Record<string, { totalUnits: number; actualRecorded: number }> = {};
-    bookings.forEach(b => {
+    activeBookings.forEach(b => {
       if (!b.discipline || !b.totalUnits) return;
       if (!progressMap[b.discipline]) {
         progressMap[b.discipline] = { totalUnits: b.totalUnits, actualRecorded: 0 };
@@ -54,7 +57,7 @@ const Admin = () => {
       progressMap[b.discipline].actualRecorded += b.lessonsRecorded ?? b.recordedUnits ?? 0;
     });
 
-    return bookings.map(b => {
+    return activeBookings.map(b => {
       const progress = progressMap[b.discipline] || { totalUnits: 0, actualRecorded: 0 };
       const percentage = progress.totalUnits > 0 ? (progress.actualRecorded / progress.totalUnits) * 100 : 0;
       return {

@@ -14,7 +14,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { useMemo } from "react";
+import { useMemo, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 const Header = () => {
   const location = useLocation();
@@ -22,6 +24,32 @@ const Header = () => {
   const { bookings } = useBookings();
   const updateBookingMutation = useUpdateBooking();
   const isActive = (path: string) => location.pathname === path;
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === 'new-notification' && event.newValue) {
+        try {
+          const notification = JSON.parse(event.newValue);
+          if (notification.recipient === role) {
+            queryClient.invalidateQueries({ queryKey: ['bookings'] });
+            toast(notification.title, {
+              description: `${notification.message}${notification.reason ? ` Motivo: "${notification.reason}"` : ''}`,
+            });
+          }
+        } catch (e) {
+          console.error("Failed to parse notification from localStorage", e);
+        }
+        localStorage.removeItem('new-notification');
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [role, queryClient]);
 
   const adminNotifications = useMemo(() => {
     if (!bookings) return [];

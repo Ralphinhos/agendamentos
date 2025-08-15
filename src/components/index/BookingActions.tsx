@@ -15,6 +15,9 @@ import { useUpdateBooking } from "@/hooks/api/useUpdateBooking";
 import { Link2, Send, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { EditBookingDialog } from "./EditBookingDialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { useState } from "react";
 
 interface BookingActionsProps {
   booking: Booking;
@@ -22,6 +25,7 @@ interface BookingActionsProps {
 
 export function BookingActions({ booking }: BookingActionsProps) {
   const updateBookingMutation = useUpdateBooking();
+  const [reason, setReason] = useState("");
   const confirmationLink = `${window.location.origin}/confirmacao/${booking.id}`;
 
   const copyLink = () => {
@@ -44,12 +48,19 @@ export function BookingActions({ booking }: BookingActionsProps) {
       id: booking.id,
       patch: {
         status: 'cancelado',
-        cancellationReason: 'Cancelado pelo Administrador',
+        cancellationReason: reason || 'Cancelado pelo Administrador',
         cancellationReadByEditor: false, // Ensure editor gets a notification
       }
     }, {
-      onSuccess: () => {
+      onSuccess: (updatedBooking) => {
+        if (!updatedBooking) return;
         toast.success("Agendamento cancelado com sucesso.");
+        localStorage.setItem('new-notification', JSON.stringify({
+          recipient: 'editor',
+          title: 'Cancelado pelo Admin',
+          message: `O agendamento para ${updatedBooking.discipline} foi cancelado.`,
+          reason: updatedBooking.cancellationReason
+        }));
       }
     });
   };
@@ -91,9 +102,17 @@ export function BookingActions({ booking }: BookingActionsProps) {
             <AlertDialogTitle>Tem certeza que deseja cancelar?</AlertDialogTitle>
             <AlertDialogDescription>
               Esta ação marcará o agendamento como 'cancelado' e notificará o editor.
-              Você poderá ver o agendamento no histórico.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <div className="py-4 space-y-2">
+            <Label htmlFor="reason">Motivo do cancelamento (opcional)</Label>
+            <Textarea
+              id="reason"
+              placeholder="Ex: O estúdio precisará de manutenção."
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+            />
+          </div>
           <AlertDialogFooter>
             <AlertDialogCancel>Voltar</AlertDialogCancel>
             <AlertDialogAction
