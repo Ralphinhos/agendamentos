@@ -6,6 +6,7 @@ import { BookingWithProgress, EditingStatus } from "@/context/BookingsContext";
 import { format } from "date-fns";
 import { Undo2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Progress } from "@/components/ui/progress";
 
 interface DisciplineBookingsSubTableProps {
   disciplineName: string;
@@ -39,6 +40,7 @@ export function DisciplineBookingsSubTable({ disciplineName, allBookings, onReve
             <TableHead>Data</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Aulas Gravadas</TableHead>
+            <TableHead>Progresso</TableHead>
             <TableHead className="text-right">Ações</TableHead>
           </TableRow>
         </TableHeader>
@@ -50,6 +52,14 @@ export function DisciplineBookingsSubTable({ disciplineName, allBookings, onReve
                 <Badge className={cn("text-white", statusColors[booking.status])}>{booking.status}</Badge>
               </TableCell>
               <TableCell>{booking.lessonsRecorded ?? 0}</TableCell>
+              <TableCell>
+                <div className="w-full relative">
+                  <Progress value={booking.disciplineProgress} className="h-5" />
+                  <span className="absolute inset-0 flex items-center justify-center text-xs font-medium text-primary-foreground">
+                    {booking.actualRecorded}/{booking.totalUnits}
+                  </span>
+                </div>
+              </TableCell>
               <TableCell className="text-right">
                 {booking.status === 'concluída' && (
                   <Button variant="outline" size="sm" onClick={() => onRevert(booking.id)}>
